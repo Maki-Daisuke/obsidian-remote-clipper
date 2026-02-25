@@ -126,7 +126,7 @@ Authorization: Bearer {OBSIDIAN_API_KEY}
 Creates a new file in the vault or overwrites an existing one.
 
 ```http
-PUT http://localhost:27124/vault/Clippings/Example-Article_a1b2c3.md
+PUT {OBSIDIAN_API_URL}vault/Clippings/Example-Article_a1b2c3.md
 Content-Type: text/markdown
 Authorization: Bearer {API_KEY}
 

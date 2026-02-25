@@ -89,8 +89,8 @@ export async function createDiscordBot(
 
 ### 4. Obsidian Integration (`obsidian.ts`)
 
-- **Protocol**: HTTP over `localhost` (default port 27124).
-- **Endpoint**: `PUT /vault/{filePath}`.
+- **Protocol**: HTTP/HTTPS via configurable base URL (`OBSIDIAN_API_URL`).
+- **Endpoint**: `${baseUrl}vault/${filePath}`.
 - **Auth**: Bearer token authentication via API Key.
 
 ## 📡 Error Handling Strategy

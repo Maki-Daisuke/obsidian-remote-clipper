@@ -4,7 +4,7 @@ export interface Config {
     discordToken: string;
     discordChannelId: string;
     obsidianApiKey: string;
-    obsidianPort: number;
+    obsidianApiUrl: string;
     destinationFolder: string;
 }
 
@@ -19,12 +19,21 @@ function requireEnv(key: string): string {
     return value;
 }
 
+function requireValidUrl(urlStr: string): string {
+    try {
+        new URL(urlStr);
+        return urlStr.endsWith("/") ? urlStr : `${urlStr}/`;
+    } catch {
+        throw new Error(`Invalid URL provided for OBSIDIAN_API_URL: ${urlStr}`);
+    }
+}
+
 export function loadConfig(): Config {
     return {
         discordToken: requireEnv("DISCORD_TOKEN"),
         discordChannelId: requireEnv("DISCORD_CHANNEL_ID"),
         obsidianApiKey: requireEnv("OBSIDIAN_API_KEY"),
-        obsidianPort: Number(process.env["OBSIDIAN_PORT"] ?? "27124"),
+        obsidianApiUrl: requireValidUrl(process.env["OBSIDIAN_API_URL"] ?? "http://localhost:27123/"),
         destinationFolder: process.env["DESTINATION_FOLDER"] ?? "Clippings/",
     };
 }

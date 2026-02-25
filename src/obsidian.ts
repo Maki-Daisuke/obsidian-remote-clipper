@@ -8,13 +8,10 @@ import type { Config } from "./config.js";
  */
 export async function isObsidianAvailable(config: Config): Promise<boolean> {
     try {
-        const response = await fetch(
-            `http://localhost:${config.obsidianPort}/`,
-            {
-                method: "GET",
-                signal: AbortSignal.timeout(5000),
-            }
-        );
+        const response = await fetch(config.obsidianApiUrl, {
+            method: "GET",
+            signal: AbortSignal.timeout(5000),
+        });
         return response.ok;
     } catch {
         return false;
@@ -36,7 +33,7 @@ export async function saveToVault(
     markdownContent: string,
     config: Config,
 ): Promise<void> {
-    const url = `http://localhost:${config.obsidianPort}/vault/${encodeURIComponent(filePath)}`;
+    const url = `${config.obsidianApiUrl}vault/${encodeURIComponent(filePath)}`;
 
     const response = await fetch(url, {
         method: "PUT",
