@@ -1,7 +1,7 @@
 {
-  "name": "discord-obsidian-clipper",
+  "name": "obsidian-remote-clipper",
   "version": "1.0.0",
-  "description": "A seamless Save-to-Obsidian bridge via Discord for mobile web clipping",
+  "description": "Obsidian Remote Clipper: A seamless Save-to-Obsidian bridge via Discord",
   "type": "module",
   "main": "dist/index.js",
   "scripts": {

@@ -3,7 +3,7 @@ import { createBot } from "./bot.js";
 import { closeBrowser } from "./clipper.js";
 
 async function main(): Promise<void> {
-    console.log("🚀 Discord-to-Obsidian Web Clipper starting...");
+    console.log("🚀 Obsidian Remote Clipper starting...");
 
     const config = loadConfig();
     const client = createBot(config);

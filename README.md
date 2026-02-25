@@ -1,4 +1,4 @@
-# 🚀 Discord-to-Obsidian Web Clipper
+# 🚀 Obsidian Remote Clipper
 
 A seamless "Save to Obsidian" bridge that allows you to clip web articles from your mobile device (Android/iOS) to your desktop Obsidian vault via Discord. Built with **TypeScript** and optimized with **pnpm**.
 
