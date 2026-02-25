@@ -33,7 +33,7 @@ export function loadConfig(): Config {
         discordToken: requireEnv("DISCORD_TOKEN"),
         discordChannelId: requireEnv("DISCORD_CHANNEL_ID"),
         obsidianApiKey: requireEnv("OBSIDIAN_API_KEY"),
-        obsidianApiUrl: requireValidUrl(process.env["OBSIDIAN_API_URL"] ?? "http://localhost:27123/"),
+        obsidianApiUrl: requireValidUrl(process.env["OBSIDIAN_API_URL"] ?? "http://127.0.0.1:27123/"),
         destinationFolder: process.env["DESTINATION_FOLDER"] ?? "Clippings/",
     };
 }

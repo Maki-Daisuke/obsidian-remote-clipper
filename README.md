@@ -1,8 +1,8 @@
-# 🚀 Obsidian Remote Clipper
+# Obsidian Remote Clipper
 
 Clip web content anywhere to your Obsidian Vault via Discord, formatting into perfect Markdown using the official extraction engine.
 
-## 📖 Overview
+## Overview
 
 While the official Obsidian Clipper is fantastic for desktop browsing, clipping content from mobile often involves clunky "Share to..." menus or manual copy-pasting. This system automates the bridge:
 
@@ -10,31 +10,12 @@ While the official Obsidian Clipper is fantastic for desktop browsing, clipping 
 2. **Process** the URL on your PC using a headless browser (Playwright) and the official Obsidian extraction engine (`defuddle`).
 3. **Sync** the beautifully formatted Markdown directly into your Vault via a Local REST API.
 
----
+### ✨ Key Benefits
 
-## 🏗 System Architecture
+* **Asynchronous Queue**: Your PC doesn't need to be always on! Share URLs to Discord anytime, and the bot will cleanly process the backlog the next time you boot up.
+* **Instant Status**: The bot reacts to your Discord messages (✅/⚠️/❌) so you can confirm on your phone whether the page was successfully saved to your Vault.
 
-```mermaid
-graph LR
-    A[Android/Mobile] -- "Post URL" --> B(Discord Channel)
-    B -- "Message Event" --> C[Node.js v24 + TS Bot]
-    C -- "Headless Render" --> D[Playwright]
-    D -- "HTML/DOM" --> E[Defuddle]
-    E -- "Markdown" --> F[Obsidian Local REST API]
-    F --> G[(Obsidian Vault)]
-```
-
-### 🧠 Design Principle: Stateless
-
-This system is designed to be **fully stateless**.
-
-* **Discord Channel as Queue**: Unprocessed URLs remain as messages in the Discord channel. Even if the bot goes offline, they are preserved and can be processed upon restart.
-* **No State in Bot/Clipper**: No database or file-based queue is maintained. All state relies solely on Discord's message history.
-* **Duplicate-Tolerant**: Clipping the same URL multiple times is allowed — each clip is saved with a unique filename.
-
----
-
-## 📋 Prerequisites
+## Prerequisites
 
 Before setting up the bot, ensure you have the following configured:
 
@@ -59,29 +40,6 @@ Before setting up the bot, ensure you have the following configured:
   * `View Channels` — Access the monitored channel
   * `Add Reactions` — Notify processing status via reactions (✅/❌)
 
-#### Discord.js Configuration
-
-```typescript
-import { Client, GatewayIntentBits } from 'discord.js';
-
-const client = new Client({
-  intents: [
-    GatewayIntentBits.Guilds,          // Access to guild information
-    GatewayIntentBits.GuildMessages,    // Receive message events
-    GatewayIntentBits.MessageContent,   // Read message content (Privileged)
-  ],
-});
-```
-
-#### URL Detection Logic
-
-URLs are extracted from message content using a regular expression:
-
-```typescript
-const URL_REGEX = /https?:\/\/[^\s<>]+/gi;
-const urls = message.content.match(URL_REGEX) ?? [];
-```
-
 * If a single message contains **multiple URLs**, each is clipped individually.
 * Non-URL text in the message is ignored.
 
@@ -92,113 +50,7 @@ const urls = message.content.match(URL_REGEX) ?? [];
   2. Enable the plugin and obtain your **API Key**.
   3. ⚠️ **Obsidian must be running on your desktop** (Local REST API runs within the Obsidian process).
 
----
-
-## 🛠 Tech Stack
-
-| Component | Technology | Role |
-| --- | --- | --- |
-| **Runtime** | **Node.js v24 (LTS)** | Modern, fast, and stable execution. |
-| **Language** | **TypeScript** | Type-safe development for complex DOM handling. |
-| **Trigger** | [Discord.js](https://discord.js.org/) v14 | Listens for mobile shares via Discord. |
-| **Browser Engine** | [Playwright](https://playwright.dev/) | Renders the final state of web pages (SPA support). |
-| **Extraction** | [Defuddle](https://github.com/kepano/defuddle) | Obsidian's official content extraction engine with built-in Markdown conversion. |
-| **Integration** | [Local REST API](https://coddingtonbear.github.io/obsidian-local-rest-api/) | Silent background writing to the Vault. |
-
----
-
-## 📡 Obsidian Local REST API Specification
-
-The bot uses the **Vault Files** endpoints of the Local REST API to save clips to the Vault.
-
-### Authentication
-
-All requests require a Bearer Token:
-
-```
-Authorization: Bearer {OBSIDIAN_API_KEY}
-```
-
-### Endpoint Used
-
-#### `PUT /vault/{filePath}` — Create or Overwrite a File
-
-Creates a new file in the vault or overwrites an existing one.
-
-```http
-PUT {OBSIDIAN_API_URL}vault/Clippings/Example-Article_a1b2c3.md
-Content-Type: text/markdown
-Authorization: Bearer {API_KEY}
-
----
-title: "Example Article"
-source: "https://example.com/article"
-author: "John Doe"
-clipped: "2026-02-24T12:00:00+09:00"
----
-
-# Example Article
-
-Article content in Markdown...
-```
-
-| Response | Meaning |
-| --- | --- |
-| `204 No Content` | Success |
-| `400 Bad Request` | Invalid filename or Content-Type |
-| `405 Method Not Allowed` | Path points to a directory |
-
-### Base URL
-
-```
-http://localhost:27124
-```
-
-> ℹ️ HTTP is used since this system runs locally.
-
----
-
-## 📁 File Naming Convention
-
-Markdown files saved to the Vault follow this naming pattern:
-
-```
-{sanitized-title}_{short-hash}.md
-```
-
-### Components
-
-| Element | Description | Example |
-| --- | --- | --- |
-| `sanitized-title` | Page title with invalid filename characters removed/replaced | `Example-Article` |
-| `short-hash` | Short hash generated from URL + timestamp (6 characters) | `a1b2c3` |
-
-### Uniqueness Guarantee
-
-* The **short hash** is derived from `URL + millisecond timestamp at clip time` (e.g., first 6 characters of SHA-256).
-* Since the timestamp differs for each clip, **filenames are always unique** — even when clipping the same URL multiple times.
-* Sanitization replaces `/ \ : * ? " < > |` with hyphens and collapses consecutive hyphens into one.
-
----
-
-## ⚠️ Error Handling Strategy
-
-Following the stateless design, all processing results are communicated via **Discord reactions**.
-
-| Scenario | Behavior | Discord Notification |
-| --- | --- | --- |
-| ✅ Clip successful | Markdown saved to Vault | ✅ Reaction |
-| 🌐 Site returns an error (403/500, etc.) | Error details are saved as a clip (viewable in Obsidian) | ⚠️ Reaction |
-| 🔌 Obsidian / Local REST API unreachable | Clip is NOT saved. URL remains in Discord as a queue item | ❌ Reaction + error message reply |
-| 🤖 Bot is offline | URLs accumulate in the Discord channel. Processed when bot restarts | — |
-
-### Unprocessed Message Recovery on Startup
-
-When the bot starts, it scans recent messages in the monitored channel and processes any messages that do **not** have a bot reaction (✅/⚠️/❌), treating them as unprocessed.
-
----
-
-## 🚀 Getting Started
+## Getting Started
 
 ### 1. Installation
 
@@ -220,11 +72,11 @@ pnpx playwright install chromium
 Create a `.env` file in the root directory:
 
 ```env
+OBSIDIAN_API_URL=http://127.0.0.1:27123/
+OBSIDIAN_API_KEY=your_local_rest_api_key
+DESTINATION_FOLDER=Clippings/
 DISCORD_TOKEN=your_bot_token
 DISCORD_CHANNEL_ID=your_channel_id
-OBSIDIAN_API_KEY=your_local_rest_api_key
-OBSIDIAN_PORT=27124
-DESTINATION_FOLDER=Clippings/
 ```
 
 ### 3. Running the Bot
@@ -238,32 +90,9 @@ pnpm run build
 pnpm start
 ```
 
----
+## Architecture & Design
 
-## ✨ Why this Architecture?
-
-### 🧩 Direct Use of Obsidian Clipper Logic (`defuddle`)
-
-Instead of using generic scrapers, this project calls the **official Obsidian extraction engine (`defuddle`)** directly within Node.js. The `defuddle/node` bundle supports built-in Markdown conversion via the `markdown: true` option, eliminating the need for a separate Turndown dependency.
-
-* **Consistency**: Ensures the clipped Markdown is identical in quality and structure to the official browser extension.
-* **Parity**: Benefit from the same site-specific rules (GitHub, YouTube, etc.) that the Obsidian team maintains.
-* **Metadata**: Accurately extracts JSON-LD and Schema.org data exactly how Obsidian expects it.
-* **Built-in Markdown**: `defuddle/node` includes Markdown conversion — no separate converter needed.
-
-### 📱 Discord as a Universal Mobile Bridge
-
-Mobile OS restrictions make it difficult to trigger desktop apps directly.
-
-* **Ubiquity**: Discord is available on every mobile device and provides an effortless "Share to..." target.
-* **Persistent Inbox**: Acts as a queue. Even if your PC is offline, the URLs wait in the Discord channel until the bot processes them.
-* **Low Latency**: Real-time event triggers ensure the clip appears in your Vault seconds after posting.
-
-### 🏗 TypeScript & pnpm
-
-* **Zero Ghost Dependencies**: pnpm ensures that only the packages you explicitly add are accessible, preventing runtime bugs.
-* **Disk Efficiency**: Uses content-addressable storage to save GBs of disk space across projects.
-* **Type Safety**: TypeScript handles the complex JSON structures from Discord and the DOM with robust error checking.
+For deep technical specifications and architectural decisions, please refer to the [System Design Document](doc/design.md).
 
 ## License
 
