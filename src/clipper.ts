@@ -50,7 +50,7 @@ export class Clipper implements AsyncDisposable {
 
         try {
             const clip = await this.clip(url);
-            const filename = buildFilename(clip.title, url);
+            const filename = buildFilename(clip.title);
             const filePath = `${this.config.destinationFolder}${filename}`;
             const markdown = this.buildMarkdownDocument(clip);
 

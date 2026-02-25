@@ -1,5 +1,3 @@
-import { createHash } from "node:crypto";
-
 /**
  * Characters that are invalid in filenames across Windows/macOS/Linux.
  * Replaced with hyphens during sanitization.
@@ -27,29 +25,25 @@ export function sanitizeTitle(title: string): string {
 }
 
 /**
- * Generate a 6-character hex hash from a URL and timestamp.
+ * Generate a human-readable timestamp string for filenames.
  *
- * This ensures uniqueness even when the same URL is clipped multiple times,
- * since the timestamp will differ for each clip.
+ * Format: `YYYYMMDD_HHMMSS` (e.g., "20260226_123456")
  */
-export function generateShortHash(url: string, timestamp: number): string {
-    const hash = createHash("sha256");
-    hash.update(`${url}${timestamp}`);
-    return hash.digest("hex").slice(0, 6);
+export function generateTimestampString(date: Date = new Date()): string {
+    const pad = (n: number) => n.toString().padStart(2, "0");
+    return `${date.getFullYear()}${pad(date.getMonth() + 1)}${pad(date.getDate())}_${pad(date.getHours())}${pad(date.getMinutes())}${pad(date.getSeconds())}`;
 }
 
 /**
  * Build a unique filename for a clipped article.
  *
- * Format: `{sanitized-title}_{short-hash}.md`
+ * Format: `{sanitized-title}_{timestamp}.md`
  *
  * @param title - The page title extracted by Defuddle
- * @param url - The original URL of the page
  * @returns A unique, filesystem-safe filename
  */
-export function buildFilename(title: string, url: string): string {
-    const timestamp = Date.now();
+export function buildFilename(title: string): string {
+    const timestamp = generateTimestampString();
     const sanitized = sanitizeTitle(title);
-    const shortHash = generateShortHash(url, timestamp);
-    return `${sanitized}_${shortHash}.md`;
+    return `${sanitized} - ${timestamp}.md`;
 }

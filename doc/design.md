@@ -95,7 +95,7 @@ const urls = message.content.match(URL_REGEX) ?? [];
 Markdown files saved to the Vault follow this naming pattern:
 
 ```
-{sanitized-title}_{short-hash}.md
+{sanitized-title} - {timestamp}.md
 ```
 
 #### Components
@@ -103,12 +103,13 @@ Markdown files saved to the Vault follow this naming pattern:
 | Element | Description | Example |
 | --- | --- | --- |
 | `sanitized-title` | Page title with invalid filename characters removed/replaced | `Example-Article` |
-| `short-hash` | Short hash generated from URL + timestamp (6 characters) | `a1b2c3` |
+| `timestamp` | Timestamp string generated at clip time (`YYYYMMDD_HHMMSS`) | `20260226_123456` |
 
 #### Uniqueness Guarantee
 
-* The **short hash** is derived from `URL + millisecond timestamp at clip time` (e.g., first 6 characters of SHA-256).
-* Since the timestamp differs for each clip, **filenames are always unique** — even when clipping the same URL multiple times.
+* The **timestamp** is derived from the system time at clip time (`YYYYMMDD_HHMMSS`).
+* Since the timestamp differs down to the second, **filenames are highly likely to be unique** — even when clipping the same URL multiple times.
+  * This ensures that clipping the same page again (or different pages that happen to have the identical title) will not accidentally overwrite existing files in your Vault.
 * Sanitization replaces `/ \ : * ? " < > |` with hyphens and collapses consecutive hyphens into one.
 
 ### 4. Obsidian Integration (`obsidian.ts`)
@@ -130,7 +131,7 @@ Authorization: Bearer {OBSIDIAN_API_KEY}
 Creates a new file in the vault or overwrites an existing one.
 
 ```http
-PUT /vault/Clippings/Example-Article_a1b2c3.md
+PUT /vault/Clippings/Example-Article - 20260224_120000.md
 Content-Type: text/markdown
 Authorization: Bearer {API_KEY}
 
