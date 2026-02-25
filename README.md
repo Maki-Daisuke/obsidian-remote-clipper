@@ -2,6 +2,8 @@
 
 Clip web content anywhere to your Obsidian Vault via Discord, formatting into perfect Markdown using the official extraction engine.
 
+https://github.com/user-attachments/assets/bb267530-76a0-4ced-beea-76e23c5c5478
+
 ## Overview
 
 While the official Obsidian Clipper is fantastic for desktop browsing, clipping content from mobile often involves clunky "Share to..." menus or manual copy-pasting. This system automates the bridge:
