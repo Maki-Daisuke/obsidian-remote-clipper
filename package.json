@@ -1,7 +1,9 @@
 {
   "name": "obsidian-remote-clipper",
-  "version": "1.0.0",
-  "description": "Obsidian Remote Clipper: A seamless Save-to-Obsidian bridge via Discord",
+  "version": "0.1.0",
+  "description": "Obsidian Remote Clipper: Clip web content anywhere to your Obsidian Vault via Discord, formatting into perfect Markdown using the official extraction engine.",
+  "author": "Daisuke (yet another) Maki",
+  "license": "MIT",
   "type": "module",
   "main": "dist/index.js",
   "scripts": {
@@ -17,7 +19,6 @@
     "web-clipper",
     "markdown"
   ],
-  "license": "MIT",
   "engines": {
     "node": ">=24.0.0"
   },

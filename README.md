@@ -1,6 +1,6 @@
 # 🚀 Obsidian Remote Clipper
 
-A seamless "Save to Obsidian" bridge that allows you to clip web articles from your mobile device (Android/iOS) to your desktop Obsidian vault via Discord. Built with **TypeScript** and optimized with **pnpm**.
+Clip web content anywhere to your Obsidian Vault via Discord, formatting into perfect Markdown using the official extraction engine.
 
 ## 📖 Overview
 
@@ -264,3 +264,11 @@ Mobile OS restrictions make it difficult to trigger desktop apps directly.
 * **Zero Ghost Dependencies**: pnpm ensures that only the packages you explicitly add are accessible, preventing runtime bugs.
 * **Disk Efficiency**: Uses content-addressable storage to save GBs of disk space across projects.
 * **Type Safety**: TypeScript handles the complex JSON structures from Discord and the DOM with robust error checking.
+
+## License
+
+This project is licensed under the [MIT License](LICENSE).
+
+## Author
+
+Daisuke (yet another) Maki ([GitHub](https://github.com/Maki-Daisuke))
