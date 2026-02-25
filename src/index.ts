@@ -1,28 +1,30 @@
 import { loadConfig } from "./config.js";
-import { createBot } from "./bot.js";
-import { closeBrowser } from "./clipper.js";
+import { DiscordBot } from "./discord-bot.js";
+import { Clipper } from "./clipper.js";
 
 async function main(): Promise<void> {
     console.log("🚀 Obsidian Remote Clipper starting...");
 
     const config = loadConfig();
-    const client = createBot(config);
 
-    // Graceful shutdown handler
-    const shutdown = async (signal: string) => {
-        console.log(`\n${signal} received. Shutting down gracefully...`);
+    await using clipper = new Clipper(config);
+    await using bot = await DiscordBot.create(
+        (url) => clipper.clipAndSave(url),
+        {
+            token: config.discordToken,
+            channelId: config.discordChannelId,
+        }
+    );
 
-        client.destroy();
-        await closeBrowser();
+    console.log("System is online. Listening for links...");
 
-        console.log("Goodbye!");
-        process.exit(0);
-    };
+    // Keep the process alive
+    await new Promise((resolve) => {
+        process.on("SIGINT", resolve);
+        process.on("SIGTERM", resolve);
+    });
 
-    process.on("SIGINT", () => shutdown("SIGINT"));
-    process.on("SIGTERM", () => shutdown("SIGTERM"));
-
-    await client.login(config.discordToken);
+    console.log("Shutting down...");
 }
 
 main().catch((error) => {
