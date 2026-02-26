@@ -2,6 +2,7 @@ import { MatrixClient, SimpleFsStorageProvider, AutojoinRoomsMixin, RustSdkCrypt
 import type { Bot, ProcessResult } from "./types.js";
 import os from "node:os";
 import path from "node:path";
+import fs from "node:fs";
 
 const URL_REGEX = /https?:\/\/[^\s<>]+/gi;
 
@@ -39,9 +40,16 @@ export class MatrixBot implements Bot {
             throw new Error("Missing Matrix configuration. Please provide MATRIX_HOMESERVER_URL, MATRIX_ACCESS_TOKEN, and MATRIX_ROOM_ID.");
         }
 
-        const cryptoStorePath = path.join(os.tmpdir(), "matrix-bot-crypto");
+        const dataDir = path.join(process.cwd(), ".data");
+        if (!fs.existsSync(dataDir)) {
+            fs.mkdirSync(dataDir, { recursive: true });
+        }
+
+        const syncStorePath = path.join(dataDir, "matrix-bot-sync.json");
+        const storage = new SimpleFsStorageProvider(syncStorePath);
+        const cryptoStorePath = path.join(dataDir, "matrix-bot-crypto");
         const cryptoStore = new RustSdkCryptoStorageProvider(cryptoStorePath);
-        const client = new MatrixClient(homeserverUrl, accessToken, null, cryptoStore);
+        const client = new MatrixClient(homeserverUrl, accessToken, storage, cryptoStore);
 
         AutojoinRoomsMixin.setupOnClient(client);
 
