@@ -1,21 +1,21 @@
 # Obsidian Remote Clipper
 
-Clip web content anywhere to your Obsidian Vault via Discord, formatting into perfect Markdown using the official extraction engine.
+Clip web content anywhere to your Obsidian Vault via Discord or Matrix, formatting into perfect Markdown using the official extraction engine.
 
-https://github.com/user-attachments/assets/bb267530-76a0-4ced-beea-76e23c5c5478
+<https://github.com/user-attachments/assets/bb267530-76a0-4ced-beea-76e23c5c5478>
 
 ## Overview
 
 While the official Obsidian Clipper is fantastic for desktop browsing, clipping content from mobile often involves clunky "Share to..." menus or manual copy-pasting. This system automates the bridge:
 
-1. **Share** a URL to a dedicated Discord channel on your phone.
+1. **Share** a URL to a dedicated chat channel (Discord or Matrix) on your phone.
 2. **Process** the URL on your PC using a headless browser (Playwright) and the official Obsidian extraction engine (`defuddle`).
 3. **Sync** the beautifully formatted Markdown directly into your Vault via a Local REST API.
 
 ### ✨ Key Benefits
 
-* **Asynchronous Queue**: Your PC doesn't need to be always on! Share URLs to Discord anytime, and the bot will cleanly process the backlog the next time you boot up.
-* **Instant Status**: The bot reacts to your Discord messages (✅/⚠️/❌) so you can confirm on your phone whether the page was successfully saved to your Vault.
+* **Asynchronous Queue**: Your PC doesn't need to be always on! Share URLs to your chat app anytime, and the bot will cleanly process the backlog the next time you boot up.
+* **Instant Status**: The bot reacts to your messages (✅/⚠️/❌) so you can confirm on your phone whether the page was successfully saved to your Vault.
 
 ## Prerequisites
 
@@ -29,7 +29,9 @@ Before setting up the bot, ensure you have the following configured:
 * **Language**: **TypeScript**.
 * **Playwright Browsers**: Required for rendering JavaScript-heavy sites.
 
-### 2. Discord Side
+### 2. Chat Platform Configuration (Choose Discord OR Matrix)
+
+#### Option A: Discord
 
 * **Discord Developer Account**: [Discord Developer Portal](https://discord.com/developers/applications).
 * **Bot Token**: Create a Bot in the Developer Portal.
@@ -42,8 +44,15 @@ Before setting up the bot, ensure you have the following configured:
   * `View Channels` — Access the monitored channel
   * `Add Reactions` — Notify processing status via reactions (✅/❌)
 
-* If a single message contains **multiple URLs**, each is clipped individually.
-* Non-URL text in the message is ignored.
+#### Option B: Matrix (e.g., Element)
+
+* **Matrix Account**: A dedicated account for the bot (or your own, though a dedicated bot account is recommended).
+* **Access Token**: You need the access token for the bot account. We provide a helper script to generate this:
+  `pnpm tsx misc/get_matrix_access_token.ts`
+* **Room ID**: The internal ID of the room to monitor (e.g., `!yourRoomId:matrix.org`).
+* **E2E Encryption**: The bot natively supports and decrypts messages in End-to-End Encrypted rooms!
+
+*(For both platforms: If a single message contains **multiple URLs**, each is clipped individually. Non-URL text is ignored).*
 
 ### 3. Obsidian Side
 
@@ -77,9 +86,21 @@ Create a `.env` file in the root directory:
 OBSIDIAN_API_URL=http://127.0.0.1:27123/
 OBSIDIAN_API_KEY=your_local_rest_api_key
 DESTINATION_FOLDER=Clippings/
+
+# Choose which bot backend to run: 'discord' or 'matrix'
+BOT_TYPE=discord
+
+# --- IF USING DISCORD ---
 DISCORD_TOKEN=your_bot_token
 DISCORD_CHANNEL_ID=your_channel_id
+
+# --- IF USING MATRIX ---
+MATRIX_HOMESERVER_URL=https://matrix.org
+MATRIX_ACCESS_TOKEN=your_matrix_access_token
+MATRIX_ROOM_ID=!your_room_id:matrix.org
 ```
+
+> **Note on Matrix Tokens**: You can easily obtain your Matrix access token by running `pnpm tsx misc/get_matrix_access_token.ts` and entering the bot's credentials in your terminal.
 
 ### 3. Running the Bot
 

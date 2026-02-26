@@ -9,7 +9,7 @@ The Obsidian Remote Clipper is a stateless bridge that captures web content via 
 
 ```mermaid
 graph TD
-    A[Android/Mobile] -- "Post URL" --> B(Discord Channel)
+    A[Android/Mobile] -- "Post URL" --> B(Discord/Matrix)
     B -- "Message Event" --> C[Node.js v24 + TS Bot]
     C -- "Headless Render" --> D[Playwright]
     D -- "HTML/DOM" --> E[Defuddle]
@@ -21,8 +21,8 @@ graph TD
 
 This system is designed to be **fully stateless**.
 
-* **Discord Channel as Queue**: Unprocessed URLs remain as messages in the Discord channel. Even if the bot goes offline, they are preserved and can be processed upon restart.
-* **No State in Bot/Clipper**: No database or file-based queue is maintained. All state relies solely on Discord's message history.
+* **Chat Channel as Queue**: Unprocessed URLs remain as messages in your Discord channel or Matrix room. Even if the bot goes offline, they are preserved and can be processed upon restart.
+* **No State in Bot/Clipper**: No database or file-based queue is maintained. All state relies solely on the chat's message history and reaction state.
 * **Duplicate-Tolerant**: Clipping the same URL multiple times is allowed — each clip is saved with a unique filename.
 
 ## Tech Stack
@@ -31,7 +31,7 @@ This system is designed to be **fully stateless**.
 | --- | --- | --- |
 | **Runtime** | **Node.js v24 (LTS)** | Modern, fast, and stable execution. |
 | **Language** | **TypeScript** | Type-safe development for complex DOM handling. |
-| **Trigger** | [Discord.js](https://discord.js.org/) v14 | Listens for mobile shares via Discord. |
+| **Trigger** | Discord.js / matrix-bot-sdk | Listens for mobile shares via chat app APIs. |
 | **Browser Engine** | [Playwright](https://playwright.dev/) | Renders the final state of web pages (SPA support). |
 | **Extraction** | [Defuddle](https://github.com/kepano/defuddle) | Obsidian's official content extraction engine with built-in Markdown conversion. |
 | **Integration** | [Local REST API](https://github.com/coddingtonbear/obsidian-local-rest-api) | Silent background writing to the Vault. |
@@ -40,7 +40,7 @@ This system is designed to be **fully stateless**.
 
 ### 1. Bot Abstract Layer
 
-To support multiple chat platforms (Slack, Matrix, etc.), the bot logic is abstracted behind an interface and a class factory method.
+To support multiple chat platforms (Discord, Matrix, etc.), the bot logic is abstracted behind an interface and a class factory method (`src/bot-factory.ts`).
 
 #### Interface: `Bot`
 
@@ -54,23 +54,12 @@ export interface Bot extends AsyncDisposable {
 }
 ```
 
-#### Class: `DiscordBot`
+#### Bot Implementations
 
-Encapsulates Discord-specific logic. Initializes the client, sets up listeners, and handles startup recovery.
+* **`DiscordBot`**: Encapsulates Discord-specific logic using `discord.js`.
+* **`MatrixBot`**: Encapsulates Matrix logic using `matrix-bot-sdk`, including Native Node.js bindings via Rust for decrypting End-to-End Encrypted (E2EE) rooms.
 
-```typescript
-export class DiscordBot implements Bot {
-  static create(
-    processURL: (url: string) => Promise<ProcessResult>,
-    conf: { token: string; channelId: string }
-  ): Promise<DiscordBot> {
-    // 1. Initialize Discord client
-    // 2. Scan for unprocessed messages (Stateless Recovery)
-    // 3. Set up MessageCreate listener
-    // 4. Return initialized DiscordBot instance
-  }
-}
-```
+Both connect to their respective services, scan for unprocessed historical messages upon startup (Stateless Recovery), and set up message listeners to trigger the clipper.
 
 #### URL Detection Logic
 
@@ -175,15 +164,15 @@ When the bot starts, it scans recent messages in the monitored channel and proce
 
 ## Rationales
 
-### Discord as a Universal Mobile Bridge
+### Chat Platforms as Universal Mobile Bridges
 
 Mobile OS restrictions make it difficult to trigger desktop apps directly.
 
-* **Ubiquity**: Discord is available on every mobile device and provides an effortless "Share to..." target.
-* **Persistent Inbox**: Acts as a queue. Even if your PC is offline, the URLs wait in the Discord channel until the bot processes them.
+* **Ubiquity**: Apps like Discord or Matrix (ElementX) are available on every mobile device and provide effortless "Share to..." targets.
+* **Persistent Inbox / Queuing**: Even if your PC is offline, the URLs wait in the chat channel until the bot restarts and catches up via synchronization or historical message reading.
 * **Low Latency**: Real-time event triggers ensure the clip appears in your Vault seconds after posting.
-* **Zero Server Maintenance**: By leveraging Discord and your local PC, there is no need to rent or maintain an external VPS or cloud server. The entire pipeline runs securely and privately within your existing environment.
-* **Stateless Clipper**: Because Discord retains the message history and acts as the persistent queue, the Obsidian Remote Clipper itself requires zero state management (no database or file-based queue), dramatically simplifying the architecture.
+* **Zero Server Maintenance**: By leveraging your existing chat infrastructure and local PC, there is no need to rent or maintain an external VPS or cloud server.
+* **Stateless Clipper**: Because the chat server retains the message history and acts as the persistent queue, the Obsidian Remote Clipper itself requires zero internal state management, dramatically simplifying the architecture.
 
 ### Implemented in TypeScript
 
