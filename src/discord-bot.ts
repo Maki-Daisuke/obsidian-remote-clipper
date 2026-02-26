@@ -61,16 +61,25 @@ export class DiscordBot implements Bot {
             bot.client.once(Events.ClientReady, async (readyClient) => {
                 console.log(`Bot logged in as ${readyClient.user.tag}`);
                 try {
-                    const channel = await readyClient.channels.fetch(bot.channelId);
-                    if (channel?.isTextBased()) {
-                        await bot.recoverUnprocessedMessages(
-                            channel as TextChannel,
-                            readyClient.user.id
-                        );
-                    }
+                    await bot.triggerRecovery();
                     resolve(bot);
                 } catch (error) {
                     reject(error);
+                }
+            });
+
+            // Recover messages if the websocket successfully resumes after a drop
+            bot.client.on(Events.ShardResume, async () => {
+                console.log("Discord connection resumed. Checking for missed messages...");
+                await bot.triggerRecovery();
+            });
+
+            // Recover messages if the websocket does a full cold reconnect
+            bot.client.on(Events.ShardReady, async () => {
+                // Ignore the very first boot (ClientReady handles that), but catch subsequent reconnects
+                if (bot.client.isReady()) {
+                    console.log("Discord shard reconnected. Checking for missed messages...");
+                    await bot.triggerRecovery();
                 }
             });
 
@@ -90,6 +99,21 @@ export class DiscordBot implements Bot {
      */
     async login(token: string): Promise<void> {
         await this.client.login(token);
+    }
+
+    private async triggerRecovery(): Promise<void> {
+        if (!this.client.isReady() || !this.client.user) return;
+        try {
+            const channel = await this.client.channels.fetch(this.channelId);
+            if (channel?.isTextBased()) {
+                await this.recoverUnprocessedMessages(
+                    channel as TextChannel,
+                    this.client.user.id
+                );
+            }
+        } catch (error) {
+            console.error("Failed to retrieve channel for recovery:", error);
+        }
     }
 
     private extractUrls(content: string): string[] {

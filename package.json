@@ -1,6 +1,6 @@
 {
   "name": "obsidian-remote-clipper",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Obsidian Remote Clipper: Clip web content anywhere to your Obsidian Vault via Discord, formatting into perfect Markdown using the official extraction engine.",
   "author": "Daisuke (yet another) Maki",
   "license": "MIT",
