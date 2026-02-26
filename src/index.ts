@@ -1,6 +1,6 @@
 import { loadConfig } from "./config.js";
-import { DiscordBot } from "./discord-bot.js";
 import { Clipper } from "./clipper.js";
+import { createBot } from "./bot-factory.js";
 
 async function main(): Promise<void> {
     console.log("🚀 Obsidian Remote Clipper starting...");
@@ -8,12 +8,9 @@ async function main(): Promise<void> {
     const config = loadConfig();
 
     await using clipper = new Clipper(config);
-    await using bot = await DiscordBot.create(
+    await using bot = await createBot(
         (url) => clipper.clipAndSave(url),
-        {
-            token: config.discordToken,
-            channelId: config.discordChannelId,
-        }
+        config.botConfig
     );
 
     console.log("System is online. Listening for links...");
