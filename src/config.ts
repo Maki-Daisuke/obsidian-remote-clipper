@@ -2,8 +2,6 @@ import "dotenv/config";
 
 export interface Config {
     botConfig: Record<string, string>;
-    obsidianApiKey: string;
-    obsidianApiUrl: string;
     destinationFolder: string;
 }
 
@@ -16,15 +14,6 @@ function requireEnv(key: string): string {
         );
     }
     return value;
-}
-
-function requireValidUrl(urlStr: string): string {
-    try {
-        new URL(urlStr);
-        return urlStr.endsWith("/") ? urlStr : `${urlStr}/`;
-    } catch {
-        throw new Error(`Invalid URL provided for OBSIDIAN_API_URL: ${urlStr}`);
-    }
 }
 
 export function loadConfig(): Config {
@@ -44,8 +33,6 @@ export function loadConfig(): Config {
 
     return {
         botConfig: process.env as Record<string, string>,
-        obsidianApiKey: requireEnv("OBSIDIAN_API_KEY"),
-        obsidianApiUrl: requireValidUrl(process.env["OBSIDIAN_API_URL"] ?? "http://127.0.0.1:27123/"),
         destinationFolder: process.env["DESTINATION_FOLDER"] ?? "Clippings/",
     };
 }

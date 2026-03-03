@@ -1,54 +1,67 @@
 import type { Config } from "./config.js";
 
+import { execFile } from "node:child_process";
+import { promisify } from "node:util";
+
+const execFileAsync = promisify(execFile);
+
 /**
- * Check if the Obsidian Local REST API is reachable.
+ * Check if the Obsidian CLI is available.
  *
- * Sends a GET request to the root endpoint.
- * Returns true if the server responds (regardless of auth status).
+ * Runs `obsidian --help` to verify the CLI is installed and in PATH.
  */
-export async function isObsidianAvailable(config: Config): Promise<boolean> {
+export async function isObsidianAvailable(): Promise<boolean> {
     try {
-        const response = await fetch(config.obsidianApiUrl, {
-            method: "GET",
-            signal: AbortSignal.timeout(5000),
-        });
-        return response.ok;
+        await execFileAsync("obsidian", ["--help"]);
+        return true;
     } catch {
         return false;
     }
 }
 
 /**
- * Save a Markdown file to the Obsidian vault via the Local REST API.
+ * Save a Markdown file to the Obsidian vault via the Obsidian CLI.
  *
- * Uses `PUT /vault/{filePath}` to create or overwrite a file.
+ * Uses `obsidian create` and `obsidian append` to create or overwrite a file.
+ * To avoid command line length limits, long content is split into chunks.
  *
  * @param filePath - Path relative to vault root (e.g., "Clippings/Article_abc123.md")
  * @param markdownContent - Full Markdown content including frontmatter
  * @param config - Application configuration
- * @throws Error if the API request fails
+ * @throws Error if the CLI command fails
  */
 export async function saveToVault(
     filePath: string,
     markdownContent: string,
     config: Config,
 ): Promise<void> {
-    const url = `${config.obsidianApiUrl}vault/${encodeURIComponent(filePath)}`;
+    // To avoid command line length limits, long content is split into chunks.
+    // A safe chunk size is chosen (e.g., 4000 characters)
+    const chunkSize = 4000;
 
-    const response = await fetch(url, {
-        method: "PUT",
-        headers: {
-            "Content-Type": "text/markdown",
-            Authorization: `Bearer ${config.obsidianApiKey}`,
-        },
-        body: markdownContent,
-        signal: AbortSignal.timeout(10000),
-    });
+    // 1. Create the note with the first chunk
+    const firstChunk = markdownContent.slice(0, chunkSize);
+    try {
+        await execFileAsync("obsidian", [
+            "create",
+            `path=${filePath}`,
+            `content=${firstChunk}`
+        ]);
+    } catch (error: any) {
+        throw new Error(`Failed to create note via Obsidian CLI: ${error.message}`);
+    }
 
-    if (!response.ok) {
-        const errorBody = await response.text().catch(() => "Unknown error");
-        throw new Error(
-            `Failed to save to Obsidian vault (HTTP ${response.status}): ${errorBody}`
-        );
+    // 2. Append the remaining chunks
+    for (let i = chunkSize; i < markdownContent.length; i += chunkSize) {
+        const chunk = markdownContent.slice(i, i + chunkSize);
+        try {
+            await execFileAsync("obsidian", [
+                "append",
+                `path=${filePath}`,
+                `content=${chunk}`
+            ]);
+        } catch (error: any) {
+            throw new Error(`Failed to append chunk to note via Obsidian CLI: ${error.message}`);
+        }
     }
 }

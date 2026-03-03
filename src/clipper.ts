@@ -43,7 +43,7 @@ export class Clipper implements AsyncDisposable {
      */
     async clipAndSave(url: string): Promise<ProcessResult> {
         // Check Obsidian availability before clipping
-        const available = await isObsidianAvailable(this.config);
+        const available = await isObsidianAvailable();
         if (!available) {
             return "error";
         }
