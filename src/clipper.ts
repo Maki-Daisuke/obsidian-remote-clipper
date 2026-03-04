@@ -72,12 +72,12 @@ export class Clipper implements AsyncDisposable {
 
         try {
             const response = await page.goto(url, {
-                waitUntil: "load",
+                waitUntil: "domcontentloaded",
                 timeout: 30000,
             });
 
             // Wait for JS-rendered content to appear
-            await page.waitForTimeout(2000);
+            await page.waitForTimeout(5000);
 
             // Use the final URL after all redirects
             const finalUrl = page.url();
