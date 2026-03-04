@@ -12,7 +12,7 @@ While the official Obsidian Clipper is fantastic for desktop browsing, clipping 
 
 1. **Share** a URL to a dedicated chat channel (Discord or Matrix) on your phone.
 2. **Process** the URL on your PC using a headless browser (Playwright) and the official Obsidian extraction engine (`defuddle`).
-3. **Sync** the beautifully formatted Markdown directly into your Vault via a Local REST API.
+3. **Sync** the beautifully formatted Markdown directly into your Vault via the official Obsidian CLI.
 
 ### ✨ Key Benefits
 
@@ -58,10 +58,9 @@ Before setting up the bot, ensure you have the following configured:
 
 ### 3. Obsidian Side
 
-* **Local REST API Plugin**:
-  1. Install [Local REST API](https://github.com/coddingtonbear/obsidian-local-rest-api) from Community Plugins.
-  2. Enable the plugin and obtain your **API Key**.
-  3. ⚠️ **Obsidian must be running on your desktop** (Local REST API runs within the Obsidian process).
+* **Obsidian app**: Version 1.12 or higher.
+* **Enable CLI**: In Obsidian settings, go to `General > Command line interface` and enable it. This installs the `obsidian` command in your system PATH.
+* ⚠️ **Obsidian must be running on your desktop** for the CLI commands to function properly.
 
 ## Getting Started
 
@@ -85,8 +84,7 @@ pnpx playwright install chromium
 Create a `.env` file in the root directory:
 
 ```env
-OBSIDIAN_API_URL=http://127.0.0.1:27123/
-OBSIDIAN_API_KEY=your_local_rest_api_key
+OBSIDIAN_VAULT=YourVaultNameOrID
 DESTINATION_FOLDER=Clippings/
 
 # Choose which bot backend to run: 'discord' or 'matrix'

@@ -13,7 +13,7 @@ graph TD
     B -- "Message Event" --> C[Node.js v24 + TS Bot]
     C -- "Headless Render" --> D[Playwright]
     D -- "HTML/DOM" --> E[Defuddle]
-    E -- "Markdown" --> F[Obsidian Local REST API]
+    E -- "Markdown" --> F[Obsidian CLI]
     F --> G[(Obsidian Vault)]
 ```
 
@@ -34,7 +34,7 @@ This system is designed to be **fully stateless**.
 | **Trigger** | Discord.js / matrix-bot-sdk | Listens for mobile shares via chat app APIs. |
 | **Browser Engine** | [Playwright](https://playwright.dev/) | Renders the final state of web pages (SPA support). |
 | **Extraction** | [Defuddle](https://github.com/kepano/defuddle) | Obsidian's official content extraction engine with built-in Markdown conversion. |
-| **Integration** | [Local REST API](https://github.com/coddingtonbear/obsidian-local-rest-api) | Silent background writing to the Vault. |
+| **Integration** | **Obsidian CLI** | Native integration via the `obsidian create` and `obsidian append` commands. |
 
 ## Component Design
 
@@ -103,49 +103,20 @@ Markdown files saved to the Vault follow this naming pattern:
 
 ### 4. Obsidian Integration (`obsidian.ts`)
 
-The bot uses the **Vault Files** endpoints of the Local REST API to save clips to the Vault.
+The bot uses the built-in **Obsidian CLI** (`obsidian` command available in v1.12+) to save clips to the Vault via local IPC.
 
-#### Authentication
+#### Commands Used
 
-All requests require a Bearer Token:
+* **`obsidian create path={path} content={frontmatter}`**: Creates a new file at the specified path within the vault. In order to avoid the insertion of a single newline at the top of the file, the frontmatter (the very first chunk) is applied directly to the content parameter during the create process.
+* **`obsidian append path={path} content={chunk}`**: Appends text to the created file.
 
-```http
-Authorization: Bearer {OBSIDIAN_API_KEY}
-```
+#### Chunking for Length Constraints
 
-#### Endpoint Used
-
-**`PUT {OBSIDIAN_API_URL}vault/{filePath}` — Create or Overwrite a File**
-
-Creates a new file in the vault or overwrites an existing one.
-
-```http
-PUT /vault/Clippings/Example-Article - 20260224_120000.md
-Content-Type: text/markdown
-Authorization: Bearer {API_KEY}
-
----
-title: "Example Article"
-source: "https://example.com/article"
-author: "John Doe"
-clipped: "2026-02-24T12:00:00+09:00"
----
-
-# Example Article
-
-Article content in Markdown...
-```
-
-| Response | Meaning |
-| --- | --- |
-| `204 No Content` | Success |
-| `400 Bad Request` | Invalid filename or Content-Type |
-| `405 Method Not Allowed` | Path points to a directory |
+Because Windows command line arguments are typically limited to ~8191 characters, long articles cannot be passed in a single CLI command. To solve this, the Markdown text is divided into chunks (e.g., 4000 characters). The first chunk is used to create the note, and subsequent chunks are appended iteratively using `obsidian append`.
 
 #### Connection Configuration
 
-The base URL is configured via `OBSIDIAN_API_URL` (e.g., `http://127.0.0.1:27123/`).
-> ℹ️ If you use HTTPS with a self-signed certificate, you must set `NODE_TLS_REJECT_UNAUTHORIZED=0` in your environment.
+If your system has multiple Vaults or different naming structures, you can configure the target vault via `OBSIDIAN_VAULT` in your `.env` file.
 
 ## Error Handling Strategy
 
@@ -155,7 +126,7 @@ Following the stateless design, all processing results are communicated via **Di
 | ----------- | ------------------------------- | ----------------------------------------------------------- | --------------------------------- |
 | **Success** | Clip successful                 | Markdown saved to Vault                                     | ✅ Reaction                       |
 | **Site**    | 403 / 500 / Timeout             | Error details saved as a clip (viewable in Obsidian)        | ⚠️ Reaction                       |
-| **Storage** | Obsidian API unreachable        | Clip is NOT saved. URL remains in Discord as a queue item   | ❌ Reaction + error message reply |
+| **Storage** | Obsidian application closed     | Clip is NOT saved. URL remains in Discord as a queue item   | ❌ Reaction + error message reply |
 | **System**  | Bot is offline                  | URLs accumulate in the channel. Processed when bot restarts | —                                 |
 
 ### Unprocessed Message Recovery on Startup
@@ -188,10 +159,10 @@ Instead of using generic scrapers, this project calls the **official Obsidian ex
 * **Metadata**: Accurately extracts JSON-LD and Schema.org data exactly how Obsidian expects it.
 * **Built-in Markdown**: `defuddle/node` includes Markdown conversion — no separate converter needed.
 
-### Use of Local REST API instead of Obsidian URL Scheme
+### Native Obsidian CLI over URI schemes or REST Plugins
 
-While Obsidian provides an `obsidian://new` URI scheme for creating files, this project uses the Local REST API for several critical reasons necessary for a background service:
+This project interacts with Obsidian using its official CLI, rather than depending on external community REST plugins, or the `obsidian://new` URI schemes:
 
-* **No Focus Stealing**: URL schemes typically force the target application to the foreground. The REST API allows the bot to write files silently in the background without interrupting your active work on the PC.
-* **No Payload Limits**: URL schemes have OS-level length limits (often around 2048-8192 characters). Full Markdown articles easily exceed this limit, causing truncated clips. HTTP `PUT` requests handle massive payloads effortlessly.
-* **Reliable Feedback**: URL schemes are "fire and forget". The REST API returns standard HTTP status codes, allowing the bot to reliably determine success or failure and provide accurate status reactions (✅/❌) back to Discord.
+* **Zero Additional Plugins**: The CLI is a native feature in Obsidian 1.12+, eliminating the need to install, configure, and manage API keys for the Local REST API community plugin.
+* **No Focus Stealing**: URL schemes typically force the target application to the foreground. The CLI operates via IPC, writing files and modifying content silently in the background without interrupting your active work on the PC.
+* **Bypassing Payload Limits Properly**: URL schemes have strict OS-level length limits (around 2000-8000 characters), which truncates most web articles. While the CLI commands technically share similar OS limits, the system actively mitigates this by streaming and chunking the Markdown payload using iterative `obsidian append` instructions, ensuring flawlessly captured long-form content.
