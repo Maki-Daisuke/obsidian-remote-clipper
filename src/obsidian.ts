@@ -35,6 +35,8 @@ export async function saveToVault(
     markdownContent: string,
     config: Config,
 ): Promise<void> {
+    const vaultArgs = config.obsidianVault ? [`vault=${config.obsidianVault}`] : [];
+
     // To avoid command line length limits, long content is split into chunks.
     // A safe chunk size is chosen (e.g., 4000 characters)
     const chunkSize = 4000;
@@ -43,6 +45,7 @@ export async function saveToVault(
     const firstChunk = markdownContent.slice(0, chunkSize);
     try {
         await execFileAsync("obsidian", [
+            ...vaultArgs,
             "create",
             `path=${filePath}`,
             `content=${firstChunk}`
@@ -56,9 +59,11 @@ export async function saveToVault(
         const chunk = markdownContent.slice(i, i + chunkSize);
         try {
             await execFileAsync("obsidian", [
+                ...vaultArgs,
                 "append",
                 `path=${filePath}`,
-                `content=${chunk}`
+                `content=${chunk}`,
+                `inline`
             ]);
         } catch (error: any) {
             throw new Error(`Failed to append chunk to note via Obsidian CLI: ${error.message}`);

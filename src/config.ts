@@ -2,6 +2,7 @@ import "dotenv/config";
 
 export interface Config {
     botConfig: Record<string, string>;
+    obsidianVault?: string;
     destinationFolder: string;
 }
 
@@ -33,6 +34,7 @@ export function loadConfig(): Config {
 
     return {
         botConfig: process.env as Record<string, string>,
+        obsidianVault: process.env["OBSIDIAN_VAULT"],
         destinationFolder: process.env["DESTINATION_FOLDER"] ?? "Clippings/",
     };
 }
