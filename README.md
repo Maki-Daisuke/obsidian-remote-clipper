@@ -6,7 +6,8 @@ Clip web content anywhere to your Obsidian Vault via Discord or Matrix, formatti
 
 ## Overview
 
-<img width="1024" height="574" alt="System Overview" src="https://github.com/user-attachments/assets/7f2a2da8-d83d-4960-81af-6aa5371a712a" />
+<img width="1024" height="572" alt="System Overview" src="https://github.com/user-attachments/assets/e35998b0-a604-4795-8f8e-4687d944cdba" />
+
 
 While the official Obsidian Clipper is fantastic for desktop browsing, clipping content from mobile often involves clunky "Share to..." menus or manual copy-pasting. This system automates the bridge:
 
