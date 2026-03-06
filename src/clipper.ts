@@ -32,7 +32,12 @@ export class Clipper implements AsyncDisposable {
      */
     private async getBrowser(): Promise<Browser> {
         if (!this.browser || !this.browser.isConnected()) {
-            this.browser = await chromium.launch({ headless: true });
+            this.browser = await chromium.launch({
+                headless: true,
+                // On Windows, chrome-headless-shell opens a DOS window due to being a console app.
+                // Using a natively installed GUI browser like 'msedge' prevents this.
+                channel: process.platform === "win32" ? "msedge" : undefined,
+            });
         }
         return this.browser;
     }
