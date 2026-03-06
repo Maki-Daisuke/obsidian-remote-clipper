@@ -83,7 +83,7 @@ const urls = message.content.match(URL_REGEX) ?? [];
 
 Markdown files saved to the Vault follow this naming pattern:
 
-```
+```text
 {sanitized-title} - {timestamp}.md
 ```
 
@@ -113,6 +113,8 @@ The bot uses the built-in **Obsidian CLI** (`obsidian` command available in v1.1
 #### Chunking for Length Constraints
 
 Because Windows command line arguments are typically limited to ~8191 characters, long articles cannot be passed in a single CLI command. To solve this, the Markdown text is divided into chunks (e.g., 4000 characters). The first chunk is used to create the note, and subsequent chunks are appended iteratively using `obsidian append`.
+
+To ensure the Markdown is not cut arbitrarily in the middle of a word or format, the chunking algorithm calculates slice points by scanning for newlines (`indexOf('\n')`). It aggregates lines up to the safe character limit, then cleanly splits the content at the line boundary. In the rare case where a single continuous line exceeds the limit (such as a massive Base64 string), it is safely hard-sliced.
 
 #### Connection Configuration
 
