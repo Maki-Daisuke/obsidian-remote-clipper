@@ -39,10 +39,10 @@ export async function saveToVault(
 
     // To avoid command line length limits, long content is split into chunks.
     // A safe chunk size is chosen (e.g., 4000 characters)
-    const chunkSize = 4000;
+    const chunkGenerator = markdownChunker(markdownContent, 4000);
 
     // 1. Create the note with the first chunk
-    const firstChunk = markdownContent.slice(0, chunkSize);
+    const firstChunk = chunkGenerator.next().value;
     try {
         await execFileAsync("obsidian", [
             ...vaultArgs,
@@ -55,8 +55,7 @@ export async function saveToVault(
     }
 
     // 2. Append the remaining chunks
-    for (let i = chunkSize; i < markdownContent.length; i += chunkSize) {
-        const chunk = markdownContent.slice(i, i + chunkSize);
+    for (const chunk of chunkGenerator) {
         try {
             await execFileAsync("obsidian", [
                 ...vaultArgs,
@@ -68,5 +67,36 @@ export async function saveToVault(
         } catch (error: any) {
             throw new Error(`Failed to append chunk to note via Obsidian CLI: ${error.message}`);
         }
+    }
+}
+
+function* markdownChunker(text: string, chunkSize: number): Generator<string> {
+    let head = 0, pos = 0;
+    for (let p = text.indexOf('\n'); p >= 0; p = text.indexOf('\n', pos)) {
+        if (p + 1 - head < chunkSize) {
+            pos = p + 1;
+            continue;
+        }
+        if (pos - head > 0) {
+            yield text.slice(head, pos);
+            head = pos;
+            if (p + 1 - head < chunkSize) {
+                pos = p + 1;
+                continue;
+            }
+        }
+        pos = p + 1;
+        // Hard-slice if a single line exceeds the max chunk size
+        while (pos - head >= chunkSize) {
+            yield text.slice(head, head + chunkSize);
+            head += chunkSize;
+        }
+    }
+    while (text.length - head >= chunkSize) {
+        yield text.slice(head, head + chunkSize);
+        head += chunkSize;
+    }
+    if (head < text.length) {
+        yield text.slice(head);
     }
 }
