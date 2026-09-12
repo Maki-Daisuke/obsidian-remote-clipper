@@ -143,7 +143,7 @@ Some pages are only visible when you are signed in. The bot can reuse a dedicate
 
 ## Architecture & Design
 
-For deep technical specifications and architectural decisions, please refer to the [System Design Document](doc/design.md).
+Internal architecture, component design, and the reasoning behind key decisions live under [`doc/`](doc/index.md), organized as an [Open Knowledge Format](https://cloud.google.com/blog/products/data-analytics/how-the-open-knowledge-format-can-improve-data-sharing) bundle (one concept per file, cross-linked). Start at the [design index](doc/index.md).
 
 ## License
 
