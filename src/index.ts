@@ -7,21 +7,33 @@ async function main(): Promise<void> {
 
     const config = loadConfig();
 
-    await using clipper = new Clipper(config);
-    await using bot = await createBot(
+    const clipper = new Clipper(config);
+    const bot = await createBot(
         (url) => clipper.clipAndSave(url),
         config.botConfig
     );
 
     console.log("System is online. Listening for links...");
 
-    // Keep the process alive
-    await new Promise((resolve) => {
-        process.on("SIGINT", resolve);
-        process.on("SIGTERM", resolve);
-    });
+    // Explicitly close the browser/bot on shutdown; relying on implicit disposal
+    // can leave the real (headed) browser process orphaned if the process is killed abruptly.
+    let shuttingDown = false;
+    const shutdown = async (signal: string) => {
+        if (shuttingDown) return;
+        shuttingDown = true;
+        console.log(`Received ${signal}. Shutting down...`);
+        try {
+            await bot[Symbol.asyncDispose]();
+            await clipper[Symbol.asyncDispose]();
+        } catch (error) {
+            console.error("Error during shutdown:", error);
+        } finally {
+            process.exit(0);
+        }
+    };
 
-    console.log("Shutting down...");
+    process.on("SIGINT", () => void shutdown("SIGINT"));
+    process.on("SIGTERM", () => void shutdown("SIGTERM"));
 }
 
 main().catch((error) => {

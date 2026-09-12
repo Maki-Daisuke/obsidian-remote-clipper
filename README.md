@@ -138,7 +138,7 @@ Some pages are only visible when you are signed in. The bot can reuse a dedicate
 * A **dedicated** profile is used, not your everyday browser. Do not point `CHROME_USER_DATA_DIR` at your main Chrome/Edge profile — sharing a live profile can lock or corrupt it.
 * The profile stores real session cookies, so it is git-ignored by default. Keep it private.
 * If a site signs you out later, just run `pnpm run login` again to refresh the session.
-* On Windows the helper uses Edge; on macOS/Linux it uses Playwright's bundled Chromium (no extra install needed).
+* Clipping uses Playwright's bundled Chromium on all platforms (no Chrome/Edge install needed).
 * `pnpm run login` requires `CHROME_USER_DATA_DIR` to be set; otherwise it exits with an error so the saved profile always matches the one the clipper uses.
 
 ## Architecture & Design

@@ -46,7 +46,6 @@ export class Clipper implements AsyncDisposable {
         if (!this.browser || !this.browser.isConnected()) {
             this.browser = await chromium.launch({
                 headless: true,
-                channel: process.platform === "win32" ? "msedge" : undefined,
             });
         }
         return this.browser.newPage();
@@ -105,6 +104,23 @@ export class Clipper implements AsyncDisposable {
                     isError: true,
                 };
             }
+
+            // Remove non-rendered elements before extraction. Some sites hide several
+            // paywall/newsletter state messages via display:none, which otherwise trick Defuddle
+            // into extracting that block instead of the visible article body.
+            await page.evaluate(() => {
+                type El = { remove(): void };
+                const g = globalThis as unknown as {
+                    document: { querySelectorAll(sel: string): Iterable<El> };
+                    getComputedStyle(el: El): { display: string; visibility: string };
+                };
+                for (const el of Array.from(g.document.querySelectorAll("body *"))) {
+                    const style = g.getComputedStyle(el);
+                    if (style.display === "none" || style.visibility === "hidden") {
+                        el.remove();
+                    }
+                }
+            });
 
             const html = await page.content();
             const result = await Defuddle(html, finalUrl, { markdown: true });

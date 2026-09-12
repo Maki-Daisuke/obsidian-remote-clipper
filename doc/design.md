@@ -88,17 +88,18 @@ To clip pages that require a login, the clipper can reuse a dedicated, pre-authe
 - **Why a persistent context, not `storageState`**: `storageState` only captures cookies + `localStorage`. Many auth-walled sites keep tokens in `indexedDB`/`sessionStorage`, which a persistent user-data directory preserves in full — avoiding the "logs out immediately after login" problem.
 - **Dedicated profile**: A separate profile directory (default `./.playwright/.chrome-clipper`, git-ignored) is used rather than the user's everyday browser profile. Sharing a live profile risks `SingletonLock` conflicts and profile corruption.
 
-#### Browser Channel Selection
+#### Browser Selection
 
-The `channel` option is chosen **per platform**, and the same logic is shared by both the login helper and the clipper:
+Both the login helper and the clipper use Playwright's **bundled Chromium** on every platform (no `channel` is set):
 
 ```typescript
-channel: process.platform === "win32" ? "msedge" : undefined,
+await chromium.launchPersistentContext(userDataDir, { headless, /* no channel */ });
 ```
 
-- **Windows → `msedge`**: In headless mode, Playwright's bundled Chromium runs via `chrome-headless-shell`, a console app that pops up a stray "DOS window" on Windows. Using the natively installed, GUI-based Edge avoids this. Edge ships with Windows, so it needs no extra install.
-- **Other OSes → `undefined` (bundled Chromium)**: On macOS/Linux the DOS-window issue does not exist, so omitting `channel` uses Playwright's bundled Chromium. This requires **no** Google Chrome installation and keeps the setup self-contained.
-- **Consistency requirement**: The login helper and the clipper's persistent path **must** resolve to the same browser binary. A Chromium user-data directory embeds a version marker; opening a profile created by one binary with a different one can trigger warnings or corruption. Sharing this single expression guarantees login and clip always match.
+- **Why not the `msedge` channel on Windows**: An earlier version used Edge on Windows, assuming the bundled `chrome-headless-shell` popped up a "DOS window". This was measured and found to be **false** for current Playwright (1.63 / Chromium 153): bundled Chromium spawns **no** extra window or `conhost`, whereas the `msedge` new-headless mode spawns a lingering blank window (and an extra `conhost`) that can even outlive the process. Bundled Chromium is therefore the cleaner choice.
+- **No extra install**: Using bundled Chromium requires no Google Chrome/Edge installation and keeps the setup self-contained across macOS, Linux, and Windows.
+- **Consistency requirement**: The login helper and the clipper's persistent path **must** resolve to the same browser binary. A Chromium user-data directory embeds a version marker; opening a profile created by one binary with a different one can trigger warnings or corruption. Sharing one launch helper (`launchClipperContext`) guarantees login and clip always match.
+
 
 ### 3. File Naming Convention (`filename.ts`)
 
