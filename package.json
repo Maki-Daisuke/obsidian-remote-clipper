@@ -11,7 +11,8 @@
     "build": "tsc",
     "start": "node dist/index.js",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "login": "tsx misc/chrome_login.ts"
   },
   "keywords": [
     "discord",

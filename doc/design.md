@@ -21,20 +21,20 @@ graph TD
 
 This system is designed to be **fully stateless**.
 
-* **Chat Channel as Queue**: Unprocessed URLs remain as messages in your Discord channel or Matrix room. Even if the bot goes offline, they are preserved and can be processed upon restart.
-* **No State in Bot/Clipper**: No database or file-based queue is maintained. All state relies solely on the chat's message history and reaction state.
-* **Duplicate-Tolerant**: Clipping the same URL multiple times is allowed — each clip is saved with a unique filename.
+- **Chat Channel as Queue**: Unprocessed URLs remain as messages in your Discord channel or Matrix room. Even if the bot goes offline, they are preserved and can be processed upon restart.
+- **No State in Bot/Clipper**: No database or file-based queue is maintained. All state relies solely on the chat's message history and reaction state.
+- **Duplicate-Tolerant**: Clipping the same URL multiple times is allowed — each clip is saved with a unique filename.
 
 ## Tech Stack
 
-| Component | Technology | Role |
-| --- | --- | --- |
-| **Runtime** | **Node.js v24 (LTS)** | Modern, fast, and stable execution. |
-| **Language** | **TypeScript** | Type-safe development for complex DOM handling. |
-| **Trigger** | Discord.js / matrix-bot-sdk | Listens for mobile shares via chat app APIs. |
-| **Browser Engine** | [Playwright](https://playwright.dev/) | Renders the final state of web pages (SPA support). |
-| **Extraction** | [Defuddle](https://github.com/kepano/defuddle) | Obsidian's official content extraction engine with built-in Markdown conversion. |
-| **Integration** | [Local REST API](https://github.com/coddingtonbear/obsidian-local-rest-api) | Silent background writing to the Vault. |
+| Component          | Technology                                                                  | Role                                                                             |
+| ------------------ | --------------------------------------------------------------------------- | -------------------------------------------------------------------------------- |
+| **Runtime**        | **Node.js v24 (LTS)**                                                       | Modern, fast, and stable execution.                                              |
+| **Language**       | **TypeScript**                                                              | Type-safe development for complex DOM handling.                                  |
+| **Trigger**        | Discord.js / matrix-bot-sdk                                                 | Listens for mobile shares via chat app APIs.                                     |
+| **Browser Engine** | [Playwright](https://playwright.dev/)                                       | Renders the final state of web pages (SPA support).                              |
+| **Extraction**     | [Defuddle](https://github.com/kepano/defuddle)                              | Obsidian's official content extraction engine with built-in Markdown conversion. |
+| **Integration**    | [Local REST API](https://github.com/coddingtonbear/obsidian-local-rest-api) | Silent background writing to the Vault.                                          |
 
 ## Component Design
 
@@ -56,8 +56,8 @@ export interface Bot extends AsyncDisposable {
 
 #### Bot Implementations
 
-* **`DiscordBot`**: Encapsulates Discord-specific logic using `discord.js`.
-* **`MatrixBot`**: Encapsulates Matrix logic using `matrix-bot-sdk`, including Native Node.js bindings via Rust for decrypting End-to-End Encrypted (E2EE) rooms.
+- **`DiscordBot`**: Encapsulates Discord-specific logic using `discord.js`.
+- **`MatrixBot`**: Encapsulates Matrix logic using `matrix-bot-sdk`, including Native Node.js bindings via Rust for decrypting End-to-End Encrypted (E2EE) rooms.
 
 Both connect to their respective services, scan for unprocessed historical messages upon startup (Stateless Recovery), and set up message listeners to trigger the clipper.
 
@@ -70,14 +70,35 @@ const URL_REGEX = /https?:\/\/[^\s<>]+/gi;
 const urls = message.content.match(URL_REGEX) ?? [];
 ```
 
-* If a single message contains **multiple URLs**, each is clipped individually.
-* Non-URL text in the message is ignored.
+- If a single message contains **multiple URLs**, each is clipped individually.
+- Non-URL text in the message is ignored.
 
 ### 2. Clipping Pipeline (`clipper.ts`)
 
-* **Rendering Strategy**: Uses Playwright's `load` status + a fixed 2s delay to ensure SPA/JavaScript-heavy content is fully rendered.
-* **Redirect Tracking**: Always uses the final redirected URL (`page.url()`) for metadata, ensuring short URLs (e.g., `share.google`) are resolved.
-* **Extraction**: Passes the rendered HTML and final URL to `defuddle` with `markdown: true`.
+- **Rendering Strategy**: Uses Playwright's `load` status + a fixed 2s delay to ensure SPA/JavaScript-heavy content is fully rendered.
+- **Redirect Tracking**: Always uses the final redirected URL (`page.url()`) for metadata, ensuring short URLs (e.g., `share.google`) are resolved.
+- **Extraction**: Passes the rendered HTML and final URL to `defuddle` with `markdown: true`.
+
+#### Authenticated Clipping (Persistent Profile)
+
+To clip pages that require a login, the clipper can reuse a dedicated, pre-authenticated browser profile.
+
+- **Opt-in via `CHROME_USER_DATA_DIR`**: When set, the clipper uses `chromium.launchPersistentContext(userDataDir, ...)` instead of a fresh `chromium.launch()`. When unset, it falls back to the stateless launch.
+- **One-time manual login**: The helper script (`misc/chrome_login.ts`, run via `pnpm run login`) opens the same profile **headed** (`headless: false`) so the user can log in by hand. The session (cookies, `indexedDB`, `sessionStorage`) is persisted to the profile directory on disk.
+- **Why a persistent context, not `storageState`**: `storageState` only captures cookies + `localStorage`. Many auth-walled sites keep tokens in `indexedDB`/`sessionStorage`, which a persistent user-data directory preserves in full — avoiding the "logs out immediately after login" problem.
+- **Dedicated profile**: A separate profile directory (default `./.playwright/.chrome-clipper`, git-ignored) is used rather than the user's everyday browser profile. Sharing a live profile risks `SingletonLock` conflicts and profile corruption.
+
+#### Browser Channel Selection
+
+The `channel` option is chosen **per platform**, and the same logic is shared by both the login helper and the clipper:
+
+```typescript
+channel: process.platform === "win32" ? "msedge" : undefined,
+```
+
+- **Windows → `msedge`**: In headless mode, Playwright's bundled Chromium runs via `chrome-headless-shell`, a console app that pops up a stray "DOS window" on Windows. Using the natively installed, GUI-based Edge avoids this. Edge ships with Windows, so it needs no extra install.
+- **Other OSes → `undefined` (bundled Chromium)**: On macOS/Linux the DOS-window issue does not exist, so omitting `channel` uses Playwright's bundled Chromium. This requires **no** Google Chrome installation and keeps the setup self-contained.
+- **Consistency requirement**: The login helper and the clipper's persistent path **must** resolve to the same browser binary. A Chromium user-data directory embeds a version marker; opening a profile created by one binary with a different one can trigger warnings or corruption. Sharing this single expression guarantees login and clip always match.
 
 ### 3. File Naming Convention (`filename.ts`)
 
@@ -89,17 +110,17 @@ Markdown files saved to the Vault follow this naming pattern:
 
 #### Components
 
-| Element | Description | Example |
-| --- | --- | --- |
+| Element           | Description                                                  | Example           |
+| ----------------- | ------------------------------------------------------------ | ----------------- |
 | `sanitized-title` | Page title with invalid filename characters removed/replaced | `Example-Article` |
-| `timestamp` | Timestamp string generated at clip time (`YYYYMMDD_HHMMSS`) | `20260226_123456` |
+| `timestamp`       | Timestamp string generated at clip time (`YYYYMMDD_HHMMSS`)  | `20260226_123456` |
 
 #### Uniqueness Guarantee
 
-* The **timestamp** is derived from the system time at clip time (`YYYYMMDD_HHMMSS`).
-* Since the timestamp differs down to the second, **filenames are highly likely to be unique** — even when clipping the same URL multiple times.
-  * This ensures that clipping the same page again (or different pages that happen to have the identical title) will not accidentally overwrite existing files in your Vault.
-* Sanitization replaces `/ \ : * ? " < > |` with hyphens and collapses consecutive hyphens into one.
+- The **timestamp** is derived from the system time at clip time (`YYYYMMDD_HHMMSS`).
+- Since the timestamp differs down to the second, **filenames are highly likely to be unique** — even when clipping the same URL multiple times.
+  - This ensures that clipping the same page again (or different pages that happen to have the identical title) will not accidentally overwrite existing files in your Vault.
+- Sanitization replaces `/ \ : * ? " < > |` with hyphens and collapses consecutive hyphens into one.
 
 ### 4. Obsidian Integration (`obsidian.ts`)
 
@@ -136,27 +157,28 @@ clipped: "2026-02-24T12:00:00+09:00"
 Article content in Markdown...
 ```
 
-| Response | Meaning |
-| --- | --- |
-| `204 No Content` | Success |
-| `400 Bad Request` | Invalid filename or Content-Type |
-| `405 Method Not Allowed` | Path points to a directory |
+| Response                 | Meaning                          |
+| ------------------------ | -------------------------------- |
+| `204 No Content`         | Success                          |
+| `400 Bad Request`        | Invalid filename or Content-Type |
+| `405 Method Not Allowed` | Path points to a directory       |
 
 #### Connection Configuration
 
 The base URL is configured via `OBSIDIAN_API_URL` (e.g., `http://127.0.0.1:27123/`).
+
 > ℹ️ If you use HTTPS with a self-signed certificate, you must set `NODE_TLS_REJECT_UNAUTHORIZED=0` in your environment.
 
 ## Error Handling Strategy
 
 Following the stateless design, all processing results are communicated via **Discord reactions**.
 
-| Tier        | Scenario                        | Behavior                                                    | Discord Notification              |
-| ----------- | ------------------------------- | ----------------------------------------------------------- | --------------------------------- |
-| **Success** | Clip successful                 | Markdown saved to Vault                                     | ✅ Reaction                       |
-| **Site**    | 403 / 500 / Timeout             | Error details saved as a clip (viewable in Obsidian)        | ⚠️ Reaction                       |
-| **Storage** | Obsidian API unreachable        | Clip is NOT saved. URL remains in Discord as a queue item   | ❌ Reaction + error message reply |
-| **System**  | Bot is offline                  | URLs accumulate in the channel. Processed when bot restarts | —                                 |
+| Tier        | Scenario                 | Behavior                                                    | Discord Notification              |
+| ----------- | ------------------------ | ----------------------------------------------------------- | --------------------------------- |
+| **Success** | Clip successful          | Markdown saved to Vault                                     | ✅ Reaction                       |
+| **Site**    | 403 / 500 / Timeout      | Error details saved as a clip (viewable in Obsidian)        | ⚠️ Reaction                       |
+| **Storage** | Obsidian API unreachable | Clip is NOT saved. URL remains in Discord as a queue item   | ❌ Reaction + error message reply |
+| **System**  | Bot is offline           | URLs accumulate in the channel. Processed when bot restarts | —                                 |
 
 ### Unprocessed Message Recovery on Startup
 
@@ -168,30 +190,30 @@ When the bot starts, it scans recent messages in the monitored channel and proce
 
 Mobile OS restrictions make it difficult to trigger desktop apps directly.
 
-* **Ubiquity**: Apps like Discord or Matrix (ElementX) are available on every mobile device and provide effortless "Share to..." targets.
-* **Persistent Inbox / Queuing**: Even if your PC is offline, the URLs wait in the chat channel until the bot restarts and catches up via synchronization or historical message reading.
-* **Low Latency**: Real-time event triggers ensure the clip appears in your Vault seconds after posting.
-* **Zero Server Maintenance**: By leveraging your existing chat infrastructure and local PC, there is no need to rent or maintain an external VPS or cloud server.
-* **Stateless Clipper**: Because the chat server retains the message history and acts as the persistent queue, the Obsidian Remote Clipper itself requires zero internal state management, dramatically simplifying the architecture.
+- **Ubiquity**: Apps like Discord or Matrix (ElementX) are available on every mobile device and provide effortless "Share to..." targets.
+- **Persistent Inbox / Queuing**: Even if your PC is offline, the URLs wait in the chat channel until the bot restarts and catches up via synchronization or historical message reading.
+- **Low Latency**: Real-time event triggers ensure the clip appears in your Vault seconds after posting.
+- **Zero Server Maintenance**: By leveraging your existing chat infrastructure and local PC, there is no need to rent or maintain an external VPS or cloud server.
+- **Stateless Clipper**: Because the chat server retains the message history and acts as the persistent queue, the Obsidian Remote Clipper itself requires zero internal state management, dramatically simplifying the architecture.
 
 ### Implemented in TypeScript
 
-* **Type Safety for DOM/API Structures**: TypeScript's strict typing ensures robust structure validation at compile time.
-* **Modern Node.js Features**: Using Node.js v24 allows for leveraging modern ECMAScript features like `Symbol.asyncDispose` (via TS 5.2+) to guarantee strict and automated cleanup of browser processes and bot connections.
-* **Seamless `defuddle` Integration**: Since Obsidian's official `defuddle` package is built for JavaScript/Node.js, writing the bot in TypeScript allows for native, zero-friction integration and identical type definitions.
+- **Type Safety for DOM/API Structures**: TypeScript's strict typing ensures robust structure validation at compile time.
+- **Modern Node.js Features**: Using Node.js v24 allows for leveraging modern ECMAScript features like `Symbol.asyncDispose` (via TS 5.2+) to guarantee strict and automated cleanup of browser processes and bot connections.
+- **Seamless `defuddle` Integration**: Since Obsidian's official `defuddle` package is built for JavaScript/Node.js, writing the bot in TypeScript allows for native, zero-friction integration and identical type definitions.
 
 ### Direct Use of Obsidian Clipper Logic (`defuddle`)
 
 Instead of using generic scrapers, this project calls the **official Obsidian extraction engine (`defuddle`)** directly within Node.js. The `defuddle/node` bundle supports built-in Markdown conversion via the `markdown: true` option, eliminating the need for a separate Turndown dependency.
 
-* **Consistency**: Ensures the clipped Markdown is identical in quality and structure to the official browser extension.
-* **Metadata**: Accurately extracts JSON-LD and Schema.org data exactly how Obsidian expects it.
-* **Built-in Markdown**: `defuddle/node` includes Markdown conversion — no separate converter needed.
+- **Consistency**: Ensures the clipped Markdown is identical in quality and structure to the official browser extension.
+- **Metadata**: Accurately extracts JSON-LD and Schema.org data exactly how Obsidian expects it.
+- **Built-in Markdown**: `defuddle/node` includes Markdown conversion — no separate converter needed.
 
 ### Use of Local REST API instead of Obsidian URL Scheme
 
 While Obsidian provides an `obsidian://new` URI scheme for creating files, this project uses the Local REST API for several critical reasons necessary for a background service:
 
-* **No Focus Stealing**: URL schemes typically force the target application to the foreground. The REST API allows the bot to write files silently in the background without interrupting your active work on the PC.
-* **No Payload Limits**: URL schemes have OS-level length limits (often around 2048-8192 characters). Full Markdown articles easily exceed this limit, causing truncated clips. HTTP `PUT` requests handle massive payloads effortlessly.
-* **Reliable Feedback**: URL schemes are "fire and forget". The REST API returns standard HTTP status codes, allowing the bot to reliably determine success or failure and provide accurate status reactions (✅/❌) back to Discord.
+- **No Focus Stealing**: URL schemes typically force the target application to the foreground. The REST API allows the bot to write files silently in the background without interrupting your active work on the PC.
+- **No Payload Limits**: URL schemes have OS-level length limits (often around 2048-8192 characters). Full Markdown articles easily exceed this limit, causing truncated clips. HTTP `PUT` requests handle massive payloads effortlessly.
+- **Reliable Feedback**: URL schemes are "fire and forget". The REST API returns standard HTTP status codes, allowing the bot to reliably determine success or failure and provide accurate status reactions (✅/❌) back to Discord.

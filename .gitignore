@@ -16,8 +16,9 @@ Thumbs.db
 .idea/
 
 # Playwright
-/test-results/
-/playwright-report/
+test-results/
+playwright-report/
+.playwright/
 
 # Persistent Bot Data
 .data/

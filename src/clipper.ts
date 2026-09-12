@@ -1,5 +1,6 @@
-import { chromium, type Browser, type Page } from "playwright";
+import { chromium, type Browser, type BrowserContext, type Page } from "playwright";
 import { Defuddle } from "defuddle/node";
+import { launchClipperContext } from "./browser.js";
 import type { Config } from "./config.js";
 import { buildFilename } from "./filename.js";
 import { isObsidianAvailable, saveToVault } from "./obsidian.js";
@@ -21,25 +22,34 @@ export interface ClipResult {
  */
 export class Clipper implements AsyncDisposable {
     private browser: Browser | null = null;
+    private context: BrowserContext | null = null;
     private config: Config;
+    private userDataDir?: string;
 
     constructor(config: Config) {
         this.config = config;
+        this.userDataDir = process.env["CHROME_USER_DATA_DIR"];
     }
 
     /**
-     * Get or launch the shared Chromium browser instance.
+     * Opens a new page, launching the browser (or persistent context) on first use.
+     * Uses a persistent context when CHROME_USER_DATA_DIR is set to reuse a logged-in session.
      */
-    private async getBrowser(): Promise<Browser> {
+    private async getPage(): Promise<Page> {
+        if (this.userDataDir) {
+            if (!this.context) {
+                this.context = await launchClipperContext(this.userDataDir, true);
+            }
+            return this.context.newPage();
+        }
+
         if (!this.browser || !this.browser.isConnected()) {
             this.browser = await chromium.launch({
                 headless: true,
-                // On Windows, chrome-headless-shell opens a DOS window due to being a console app.
-                // Using a natively installed GUI browser like 'msedge' prevents this.
                 channel: process.platform === "win32" ? "msedge" : undefined,
             });
         }
-        return this.browser;
+        return this.browser.newPage();
     }
 
     /**
@@ -72,8 +82,7 @@ export class Clipper implements AsyncDisposable {
      * Renders a URL with Playwright and extracts content with Defuddle.
      */
     async clip(url: string): Promise<ClipResult> {
-        const instance = await this.getBrowser();
-        const page: Page = await instance.newPage();
+        const page: Page = await this.getPage();
 
         try {
             const response = await page.goto(url, {
@@ -157,7 +166,12 @@ export class Clipper implements AsyncDisposable {
      * Gracefully shuts down the browser instance.
      */
     async [Symbol.asyncDispose](): Promise<void> {
-        if (this.browser) {
+        if (this.context) {
+            console.log("Closing Clipper browser context...");
+            await this.context.close();
+            this.context = null;
+            this.browser = null;
+        } else if (this.browser) {
             console.log("Closing Clipper browser...");
             await this.browser.close();
             this.browser = null;

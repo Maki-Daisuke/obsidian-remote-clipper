@@ -100,6 +100,10 @@ DISCORD_CHANNEL_ID=your_channel_id
 MATRIX_HOMESERVER_URL=https://matrix.org
 MATRIX_ACCESS_TOKEN=your_matrix_access_token
 MATRIX_ROOM_ID=!your_room_id:matrix.org
+
+# --- OPTIONAL: Authenticated Clipping ---
+# Reuse a logged-in browser profile to clip pages that require sign-in.
+# CHROME_USER_DATA_DIR=./.playwright/.chrome-clipper
 ```
 
 > **Note on Matrix Tokens**: You can easily obtain your Matrix access token by running `pnpm tsx misc/get_matrix_access_token.ts` and entering the bot's credentials in your terminal.
@@ -114,6 +118,28 @@ pnpm run dev
 pnpm run build
 pnpm start
 ```
+
+### 4. Clipping Pages That Require Login (Optional)
+
+Some pages are only visible when you are signed in. The bot can reuse a dedicated, pre-authenticated browser profile to clip them.
+
+1. Set `CHROME_USER_DATA_DIR` in your `.env` to a profile directory (e.g. `./.playwright/.chrome-clipper`).
+2. Run the one-time login helper and sign in manually in the window that opens:
+
+   ```bash
+   pnpm run login
+   ```
+
+3. Once logged in, return to the terminal and press Enter. Your session is saved to the profile directory.
+4. Start the bot as usual (`pnpm start`) — it now clips using your logged-in session.
+
+**Notes:**
+
+* A **dedicated** profile is used, not your everyday browser. Do not point `CHROME_USER_DATA_DIR` at your main Chrome/Edge profile — sharing a live profile can lock or corrupt it.
+* The profile stores real session cookies, so it is git-ignored by default. Keep it private.
+* If a site signs you out later, just run `pnpm run login` again to refresh the session.
+* On Windows the helper uses Edge; on macOS/Linux it uses Playwright's bundled Chromium (no extra install needed).
+* `pnpm run login` requires `CHROME_USER_DATA_DIR` to be set; otherwise it exits with an error so the saved profile always matches the one the clipper uses.
 
 ## Architecture & Design
 
