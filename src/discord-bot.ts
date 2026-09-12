@@ -89,7 +89,7 @@ export class DiscordBot implements Bot {
                 await bot.handleMessage(message);
             });
 
-            bot.client.login(bot.client.token || undefined).catch(reject);
+            bot.client.login(conf.token).catch(reject);
         });
     }
 
