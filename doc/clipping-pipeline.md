@@ -43,6 +43,17 @@ await chromium.launchPersistentContext(userDataDir, {
 - **No extra install**: Using bundled Chromium requires no Google Chrome/Edge installation and keeps the setup self-contained across macOS, Linux, and Windows.
 - **Consistency requirement**: The login helper and the clipper's persistent path **must** resolve to the same browser binary. A Chromium user-data directory embeds a version marker; opening a profile created by one binary with a different one can trigger warnings or corruption. Sharing one launch helper guarantees login and clip always match.
 
+## Browser Lifecycle & Idle Timeout
+
+To balance responsiveness with memory consumption, the clipper uses an **idle timeout with asynchronous mutex synchronization** (`AsyncLock`):
+
+- **Lazy Launch & Reuse**: The browser is launched lazily on the first URL clip and kept alive across subsequent requests to eliminate the multi-second startup overhead.
+- **Configurable Idle Shutdown**: When the bot remains idle without active clipping jobs for longer than `BROWSER_IDLE_TIMEOUT_SECONDS` (default: 300 seconds / 5 minutes), the browser is automatically closed to reclaim memory. Setting the value to `0` keeps the browser alive indefinitely.
+- **Race Condition Prevention via Mutex (`AsyncLock`)**:
+  - Browser lifecycle transitions (launching, page creation, closing, and timer arming/disarming) are strictly serialized through an `AsyncLock` powered by `Promise.withResolvers()`.
+  - Heavy page rendering and content extraction occur outside the lock, allowing concurrent clip requests.
+  - If a new clip request arrives while the idle timer is firing or closing the browser, the lock guarantees clean shutdown before launching a new instance, preventing `SingletonLock` conflicts or invalid handle errors.
+
 ## Related concepts
 
 - [Architecture](architecture.md)

@@ -104,6 +104,10 @@ MATRIX_ROOM_ID=!your_room_id:matrix.org
 # --- OPTIONAL: Authenticated Clipping ---
 # Reuse a logged-in browser profile to clip pages that require sign-in.
 # CHROME_USER_DATA_DIR=./.playwright/.chrome-clipper
+
+# --- OPTIONAL: Resource Management ---
+# Inactivity seconds before closing Chromium to free memory (default: 300, 0 to keep open).
+# BROWSER_IDLE_TIMEOUT_SECONDS=300
 ```
 
 > **Note on Matrix Tokens**: You can easily obtain your Matrix access token by running `pnpm tsx misc/get_matrix_access_token.ts` and entering the bot's credentials in your terminal.

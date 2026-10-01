@@ -5,6 +5,7 @@ export interface Config {
     obsidianApiKey: string;
     obsidianApiUrl: string;
     destinationFolder: string;
+    browserIdleTimeoutMs: number;
 }
 
 function requireEnv(key: string): string {
@@ -27,6 +28,22 @@ function requireValidUrl(urlStr: string): string {
     }
 }
 
+export function parseBrowserIdleTimeoutMs(envValue?: string): number {
+    if (envValue === undefined || envValue.trim() === "") {
+        return 300 * 1000; // Default 5 minutes (300 seconds)
+    }
+
+    const parsed = parseInt(envValue, 10);
+    if (Number.isNaN(parsed) || parsed < 0) {
+        console.warn(
+            `Invalid BROWSER_IDLE_TIMEOUT_SECONDS: "${envValue}". Defaulting to 300 seconds.`
+        );
+        return 300 * 1000;
+    }
+
+    return parsed * 1000;
+}
+
 export function loadConfig(): Config {
     const botType = (process.env["BOT_TYPE"] || "discord").toLowerCase();
 
@@ -47,5 +64,6 @@ export function loadConfig(): Config {
         obsidianApiKey: requireEnv("OBSIDIAN_API_KEY"),
         obsidianApiUrl: requireValidUrl(process.env["OBSIDIAN_API_URL"] ?? "http://127.0.0.1:27123/"),
         destinationFolder: process.env["DESTINATION_FOLDER"] ?? "Clippings/",
+        browserIdleTimeoutMs: parseBrowserIdleTimeoutMs(process.env["BROWSER_IDLE_TIMEOUT_SECONDS"]),
     };
 }

@@ -5,6 +5,7 @@ import type { Config } from "./config.js";
 import { buildFilename } from "./filename.js";
 import { isObsidianAvailable, saveToVault } from "./obsidian.js";
 import type { ProcessResult } from "./types.js";
+import { AsyncLock } from "./lock.js";
 
 export interface ClipResult {
     title: string;
@@ -26,29 +27,131 @@ export class Clipper implements AsyncDisposable {
     private config: Config;
     private userDataDir?: string;
 
+    private readonly lock = new AsyncLock();
+    private idleTimer: NodeJS.Timeout | null = null;
+    private activeClipsCount = 0;
+    private isDisposed = false;
+
     constructor(config: Config) {
         this.config = config;
         this.userDataDir = process.env["CHROME_USER_DATA_DIR"];
     }
 
     /**
-     * Opens a new page, launching the browser (or persistent context) on first use.
-     * Uses a persistent context when CHROME_USER_DATA_DIR is set to reuse a logged-in session.
+     * Clears any currently scheduled idle timer.
      */
-    private async getPage(): Promise<Page> {
-        if (this.userDataDir) {
-            if (!this.context) {
-                this.context = await launchClipperContext(this.userDataDir, true);
-            }
-            return this.context.newPage();
+    private clearIdleTimer(): void {
+        if (this.idleTimer) {
+            clearTimeout(this.idleTimer);
+            this.idleTimer = null;
+        }
+    }
+
+    /**
+     * Starts the idle timer if configured.
+     * When it fires, if no clips are running, the browser will be closed.
+     */
+    private startIdleTimer(): void {
+        this.clearIdleTimer();
+        if (this.config.browserIdleTimeoutMs <= 0) {
+            return;
         }
 
-        if (!this.browser || !this.browser.isConnected()) {
-            this.browser = await chromium.launch({
-                headless: true,
-            });
+        this.idleTimer = setTimeout(() => {
+            void this.handleIdleTimeout();
+        }, this.config.browserIdleTimeoutMs);
+
+        // Do not prevent Node.js from exiting purely because of this idle timer
+        this.idleTimer.unref();
+    }
+
+    /**
+     * Closes the browser when the idle timeout is reached, under the mutex lock.
+     */
+    private async handleIdleTimeout(): Promise<void> {
+        await this.lock.runExclusive(async () => {
+            // Re-check under the lock: do not close if new clips arrived or if disposed
+            if (this.activeClipsCount > 0 || this.isDisposed) {
+                return;
+            }
+
+            const timeoutSec = Math.round(this.config.browserIdleTimeoutMs / 1000);
+            console.log(`Browser idle timeout reached (${timeoutSec}s). Closing browser to free memory...`);
+            await this.closeBrowser();
+        });
+    }
+
+    /**
+     * Closes any running browser or persistent context instances.
+     */
+    private async closeBrowser(): Promise<void> {
+        this.clearIdleTimer();
+        try {
+            if (this.context) {
+                console.log("Closing Clipper browser context...");
+                await this.context.close();
+            } else if (this.browser) {
+                console.log("Closing Clipper browser...");
+                await this.browser.close();
+            }
+        } catch (error) {
+            console.error("Error closing browser:", error);
+        } finally {
+            this.context = null;
+            this.browser = null;
         }
-        return this.browser.newPage();
+    }
+
+    /**
+     * Atomically acquires a new page under the mutex lock.
+     * Cancels any active idle timer, ensures the browser/context is running,
+     * creates a new page, and increments the active clip count.
+     */
+    private async acquirePage(): Promise<Page> {
+        return this.lock.runExclusive(async () => {
+            if (this.isDisposed) {
+                throw new Error("Clipper has been disposed");
+            }
+
+            this.clearIdleTimer();
+
+            if (this.userDataDir) {
+                if (!this.context) {
+                    this.context = await launchClipperContext(this.userDataDir, true);
+                }
+                const page = await this.context.newPage();
+                this.activeClipsCount++;
+                return page;
+            }
+
+            if (!this.browser || !this.browser.isConnected()) {
+                this.browser = await chromium.launch({
+                    headless: true,
+                });
+            }
+            const page = await this.browser.newPage();
+            this.activeClipsCount++;
+            return page;
+        });
+    }
+
+    /**
+     * Releases the page by closing it and updating the active clip count under the lock.
+     * If no clips are active, arms the idle timer.
+     */
+    private async releasePage(page: Page): Promise<void> {
+        try {
+            await page.close();
+        } catch (error) {
+            console.warn("Failed to close page cleanly:", error);
+        }
+
+        await this.lock.runExclusive(async () => {
+            this.activeClipsCount = Math.max(0, this.activeClipsCount - 1);
+            if (this.activeClipsCount === 0 && !this.isDisposed) {
+                this.startIdleTimer();
+            }
+        });
     }
 
     /**
@@ -81,7 +184,7 @@ export class Clipper implements AsyncDisposable {
      * Renders a URL with Playwright and extracts content with Defuddle.
      */
     async clip(url: string): Promise<ClipResult> {
-        const page: Page = await this.getPage();
+        const page = await this.acquirePage();
 
         try {
             const response = await page.goto(url, {
@@ -145,7 +248,7 @@ export class Clipper implements AsyncDisposable {
                 isError: true,
             };
         } finally {
-            await page.close();
+            await this.releasePage(page);
         }
     }
 
@@ -179,18 +282,13 @@ export class Clipper implements AsyncDisposable {
     }
 
     /**
-     * Gracefully shuts down the browser instance.
+     * Gracefully shuts down the browser instance on disposal under the lock.
      */
     async [Symbol.asyncDispose](): Promise<void> {
-        if (this.context) {
-            console.log("Closing Clipper browser context...");
-            await this.context.close();
-            this.context = null;
-            this.browser = null;
-        } else if (this.browser) {
-            console.log("Closing Clipper browser...");
-            await this.browser.close();
-            this.browser = null;
-        }
+        await this.lock.runExclusive(async () => {
+            this.isDisposed = true;
+            this.clearIdleTimer();
+            await this.closeBrowser();
+        });
     }
 }
