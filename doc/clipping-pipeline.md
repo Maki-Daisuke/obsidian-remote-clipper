@@ -54,6 +54,46 @@ To balance responsiveness with memory consumption, the clipper uses an **idle ti
   - Heavy page rendering and content extraction occur outside the lock, allowing concurrent clip requests.
   - If a new clip request arrives while the idle timer is firing or closing the browser, the lock guarantees clean shutdown before launching a new instance, preventing `SingletonLock` conflicts or invalid handle errors.
 
+```mermaid
+sequenceDiagram
+    participant Worker as Clipper (clip)
+    participant Lock as AsyncLock (Mutex)
+    participant Timer as Idle Timer
+    participant Browser as Playwright Chromium
+
+    Note over Worker, Browser: 1. URL Arrival (Atomic Acquire)
+    Worker->>Lock: runExclusive (acquirePage)
+    Lock-->>Worker: Lock acquired
+    Worker->>Timer: Cancel active timer
+    alt Browser not running or disconnected
+        Worker->>Browser: Launch Chromium
+    end
+    Worker->>Browser: newPage()
+    Worker->>Worker: activeClipsCount++
+    Worker->>Lock: Release lock
+
+    Note over Worker: 2. Heavy Extraction (Concurrent & Unlocked)
+    Worker->>Worker: goto() -> wait -> clean DOM -> Defuddle()
+
+    Note over Worker, Browser: 3. Clip Finished (Atomic Release)
+    Worker->>Browser: page.close()
+    Worker->>Lock: runExclusive (releasePage)
+    Lock-->>Worker: Lock acquired
+    Worker->>Worker: activeClipsCount--
+    alt activeClipsCount == 0
+        Worker->>Timer: Start Idle Timer (e.g. 5 min)
+    end
+    Worker->>Lock: Release lock
+
+    Note over Timer, Browser: 4. Idle Timeout Fired
+    Timer->>Lock: runExclusive (handleIdleTimeout)
+    Lock-->>Timer: Lock acquired
+    alt activeClipsCount == 0 (Double-checked)
+        Timer->>Browser: close() (reclaim memory)
+    end
+    Timer->>Lock: Release lock
+```
+
 ## Related concepts
 
 - [Architecture](architecture.md)

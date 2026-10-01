@@ -44,4 +44,14 @@ While Obsidian provides an `obsidian://new` URI scheme for creating files, this 
 
 See [Obsidian Integration](obsidian-integration.md) for the concrete endpoint usage.
 
+## Browser Lifecycle: Lazy Launch and Idle Timeout
+
+Handling browser lifecycles in a long-running background desktop process requires balancing system resource conservation with responsive clipping:
+
+- **Why Not Always-On**: Chromium (even in headless mode) spawns multiple background helper processes (GPU, network, rendering), consuming non-trivial RAM (hundreds of MB) and system resources indefinitely, even when the bot is idle for days.
+- **Why Not Per-Request Launch & Teardown**: Launching Chromium incurs a cold-start latency penalty of 2–3+ seconds per URL. When a user shares several articles in quick succession from mobile, per-request launching creates a sluggish experience.
+- **Why an Idle Timeout (Hybrid Approach)**: An idle timer (default: 5 minutes, configurable via `BROWSER_IDLE_TIMEOUT_SECONDS`) keeps the browser alive while active, ensuring lightning-fast captures for bursts of clips, while automatically shutting down Chromium to zero RAM when idle.
+
+See [Clipping Pipeline](clipping-pipeline.md) for the detailed lifecycle flow.
+
 Back to [index](index.md).
