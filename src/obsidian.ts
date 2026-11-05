@@ -33,7 +33,11 @@ export async function saveToVault(
     markdownContent: string,
     config: Config,
 ): Promise<void> {
-    const url = `${config.obsidianApiUrl}vault/${encodeURIComponent(filePath)}`;
+    // Encode each path segment individually so "/" stays a path separator.
+    // Encoding the whole path would produce "%2F", which newer Local REST API
+    // versions (5.5+) no longer decode, resulting in HTTP 404.
+    const encodedPath = filePath.split("/").map(encodeURIComponent).join("/");
+    const url = `${config.obsidianApiUrl}vault/${encodedPath}`;
 
     const response = await fetch(url, {
         method: "PUT",

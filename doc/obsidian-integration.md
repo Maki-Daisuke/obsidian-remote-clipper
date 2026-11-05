@@ -25,6 +25,8 @@ Authorization: Bearer {OBSIDIAN_API_KEY}
 
 Creates a new file in the vault or overwrites an existing one.
 
+Path segments are percent-encoded individually, so `/` remains a path separator. Encoding the whole path (producing `%2F`) fails with `404` on Local REST API 5.5+, which no longer decodes `%2F` as a separator.
+
 ```http
 PUT /vault/Clippings/Example-Article - 20260224_120000.md
 Content-Type: text/markdown
