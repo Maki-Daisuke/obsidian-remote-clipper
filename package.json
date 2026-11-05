@@ -24,9 +24,10 @@
     "node": ">=24.0.0"
   },
   "dependencies": {
-    "defuddle": "^0.6.6",
+    "defuddle": "^0.19.6",
     "discord.js": "^14.28.1",
     "dotenv": "^16.6.1",
+    "linkedom": "^0.18.15",
     "matrix-bot-sdk": "^0.6.6",
     "playwright": "^1.64.1"
   },

@@ -1,5 +1,6 @@
 import { chromium, type Browser, type BrowserContext, type Page } from "playwright";
 import { Defuddle } from "defuddle/node";
+import { parseHTML } from "linkedom";
 import { launchClipperContext } from "./browser.js";
 import type { Config } from "./config.js";
 import { buildFilename } from "./filename.js";
@@ -226,7 +227,8 @@ export class Clipper implements AsyncDisposable {
             });
 
             const html = await page.content();
-            const result = await Defuddle(html, finalUrl, { markdown: true });
+            const { document } = parseHTML(html);
+            const result = await Defuddle(document, finalUrl, { markdown: true });
 
             return {
                 title: result.title || new URL(finalUrl).hostname,

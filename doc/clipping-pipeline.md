@@ -11,7 +11,7 @@ timestamp: 2026-09-12T00:00:00Z
 
 - **Rendering Strategy**: Uses Playwright to load the page and waits for JS-rendered content to settle so SPA/JavaScript-heavy content is fully rendered.
 - **Redirect Tracking**: Always uses the final redirected URL (`page.url()`) for metadata, ensuring short URLs (e.g., `share.google`) are resolved.
-- **Extraction**: Passes the rendered HTML and final URL to `defuddle` with `markdown: true`.
+- **Extraction**: Parses the rendered HTML into a Document with `linkedom`, then passes that Document and the final URL to `defuddle/node` with `markdown: true`. Defuddle 0.19.6 deprecates passing HTML strings directly. The resulting Markdown uses `contentMarkdown` when available, otherwise `content`.
 
 ## Content Cleanup Before Extraction
 
