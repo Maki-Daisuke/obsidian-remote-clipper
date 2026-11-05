@@ -24,7 +24,7 @@
     "node": ">=24.0.0"
   },
   "dependencies": {
-    "defuddle": "^0.6.6",
+    "defuddle": "^0.19.1",
     "discord.js": "^14.28.1",
     "dotenv": "^16.6.1",
     "matrix-bot-sdk": "^0.6.6",
@@ -34,6 +34,6 @@
     "@types/node": "^24.19.2",
     "tsx": "^4.23.15",
     "typescript": "^5.9.3",
-    "vitest": "^3.2.7"
+    "vitest": "^5.1.0"
   }
 }
